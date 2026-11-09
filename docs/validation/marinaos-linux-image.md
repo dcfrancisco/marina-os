@@ -34,6 +34,13 @@ rejection, not binary or systemd qualification.
 
 Install `debootstrap`, `ubuntu-keyring`, `parted`, `dosfstools`, `e2fsprogs`,
 `rsync`, `util-linux`, `python3` and normal shell/core utilities in that VM.
+On Ubuntu, an operator can install the build and QEMU prerequisites with:
+
+```sh
+sudo apt-get update
+sudo apt-get install debootstrap ubuntu-keyring parted dosfstools e2fsprogs rsync util-linux python3 qemu-system-x86 ovmf
+```
+
 The build requires root there for chroot, temporary mounts and loop devices.
 The output must be a new file; existing files, links and device nodes are rejected.
 Do not run the builder against a host disk or reuse an existing output path.

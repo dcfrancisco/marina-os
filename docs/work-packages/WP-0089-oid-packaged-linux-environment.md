@@ -76,3 +76,13 @@ environment is operationally qualified.
 Continued the next unblocked package-ownership dependency: oid-marina and talvik now declare mutual Conflicts. Rootless relocated dpkg tests with sanitized fixture packages reject both co-installation orders and preserve the previously installed service file. No host service or maintainer script executes in the fixture. Native payload, upgrade, migration, service and boot qualification remain separate; this does not close WP-0089.
 
 Exact commands and results: [implementation report](../reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md).
+
+## Read-only MarinaOS CLI slice
+
+`cargo run -p marinaos-cli -- <version|status|doctor|hardware> [--json]`
+now prints JSON from local kernel files and systemd. Read failures are reported;
+systemd bus failure is not reported as health. The command does not require
+Talvik. It is an early standalone client, not yet a daemon client. No
+`marinaosd`, authenticated IPC, dedicated service account, MarinaOS DEBs,
+installation lifecycle or image integration is implemented in this slice.
+Those and native Ubuntu 24.04 package/boot qualification remain open.

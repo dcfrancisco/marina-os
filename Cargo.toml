@@ -18,6 +18,7 @@ members = [
     "crates/desktop-shell",
     "crates/operation-coordinator",
     "crates/docs",
+    "crates/marinaos-cli",
 ]
 
 [workspace.package]

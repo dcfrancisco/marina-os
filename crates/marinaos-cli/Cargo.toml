@@ -1,0 +1,13 @@
+[package]
+name = "marinaos-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "marinaosctl"
+path = "src/main.rs"
+
+[dependencies]
+serde_json = "1"
