@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import marinaos_lifecycle
 
 
 def boot(image, code, variables, report, timeout=180, qemu='qemu-system-x86_64'):
@@ -82,9 +83,19 @@ if __name__ == '__main__':
     parser.add_argument('--ovmf-vars', required=True, type=Path)
     parser.add_argument('--report', required=True, type=Path)
     parser.add_argument('--timeout', type=int, default=180)
+    parser.add_argument('--full', action='store_true', help='verify login, recovery and reboot using a disposable persistent overlay')
+    parser.add_argument('--password-file', type=Path, help='private administrator password file for --full')
     args = parser.parse_args()
     try:
-        raise SystemExit(0 if boot(args.image, args.ovmf_code, args.ovmf_vars,
-                                  args.report, args.timeout) else 1)
+        if args.full:
+            if args.password_file is None:
+                parser.error('--full requires --password-file')
+            passed = marinaos_lifecycle.qualify(args.image, args.ovmf_code, args.ovmf_vars,
+                                               args.report, args.password_file, args.timeout)
+        else:
+            if args.password_file is not None:
+                parser.error('--password-file requires --full')
+            passed = boot(args.image, args.ovmf_code, args.ovmf_vars, args.report, args.timeout)
+        raise SystemExit(0 if passed else 1)
     except (OSError, ValueError) as error:
         parser.exit(2, f'boot qualification unavailable: {error}\n')

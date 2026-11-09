@@ -27,7 +27,16 @@ elif name == 'losetup' and '--find' in args:
 elif name == 'blkid':
     print('ABCD-1234' if args[-1].endswith('p1') else 'root-123')
 elif name == 'sha256sum':
-    print('fixture-digest  ' + args[0])
+    for arg in args:
+        print('fixture-digest  ' + arg)
+elif name == 'dpkg-deb':
+    package = pathlib.Path(args[1]).name
+    if args[2] == 'Package':
+        print('wrong-package' if os.environ.get('BAD_DEB') == 'name' else package.removesuffix('.deb'))
+    elif args[2] == 'Architecture':
+        print('arm64' if os.environ.get('BAD_DEB') == 'arch' else 'amd64')
+    elif args[2] == 'Version':
+        print('0.1.1' if os.environ.get('BAD_DEB') == 'version' and 'cli' in package else '0.1.0')
 elif name == 'chroot':
     root = pathlib.Path(args[0])
     if args[1] == 'chpasswd':
@@ -49,29 +58,43 @@ if name == 'umount' and 'image-root' in args[-1] and os.environ.get('FAIL_IMAGE_
 
 
 class BuilderIntegration(unittest.TestCase):
-    def build(self, fail=False):
+    def build(self, fail=False, bad_deb=None):
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
             mocks = directory / 'bin'
             mocks.mkdir()
             for name in ['id', 'uname', 'debootstrap', 'chroot', 'parted', 'mount',
                          'umount', 'losetup', 'mkfs.ext4', 'mkfs.vfat', 'blkid',
-                         'sha256sum', 'sync']:
+                         'sha256sum', 'sync', 'dpkg-deb']:
                 path = mocks / name
                 path.write_text(STUB)
                 path.chmod(0o755)
             password = directory / 'password'
             password.write_text('$6$fixture$not-a-real-password-hash')
+            core = directory / 'core.deb'
+            cli = directory / 'cli.deb'
+            core.write_bytes(b'core fixture')
+            cli.write_bytes(b'cli fixture')
             output = directory / 'image.raw'
             log = directory / 'calls.jsonl'
             env = {**os.environ, 'PATH': str(mocks) + ':' + os.environ['PATH'],
                    'TMPDIR': tmp, 'BUILD_TEST_LOG': str(log)}
             if fail:
                 env['FAIL_IMAGE_UNMOUNT'] = '1'
+            if bad_deb:
+                env['BAD_DEB'] = bad_deb
             result = subprocess.run(['bash', str(SCRIPTS / 'build-marinaos-linux-image.sh'),
                                      '--output', str(output), '--admin-password-hash-file',
-                                     str(password)], env=env, capture_output=True, text=True)
+                                     str(password), '--core-deb', str(core), '--cli-deb',
+                                     str(cli)], env=env, capture_output=True, text=True)
             calls = [json.loads(line) for line in log.read_text().splitlines()]
+            if bad_deb:
+                self.assertNotEqual(result.returncode, 0)
+                self.assertFalse(output.exists())
+                self.assertFalse(any(c['tool'] == 'debootstrap' for c in calls))
+                self.assertIn('versions must match' if bad_deb == 'version' else
+                              'invalid package identity', result.stderr)
+                return
             if fail:
                 self.assertNotEqual(result.returncode, 0)
                 self.assertFalse(output.with_suffix('.raw.sha256').exists())
@@ -81,6 +104,12 @@ class BuilderIntegration(unittest.TestCase):
             self.assertEqual(result.returncode, 0, result.stderr)
             account = next(c for c in calls if c['tool'] == 'chroot' and c['args'][1] == 'useradd')
             self.assertEqual(account['args'][-1], 'marina-admin')
+            self.assertIn('sudo,marinaos-readers', account['args'])
+            installed = next(c for c in calls if c['tool'] == 'chroot' and
+                             '/tmp/marinaos-core.deb' in c['args'])
+            self.assertIn('/tmp/marinaos-cli.deb', installed['args'])
+            self.assertTrue(any(c['tool'] == 'chroot' and c['args'][1:] ==
+                                ['systemctl', 'enable', 'marinaosd.service'] for c in calls))
             grub = next(c for c in calls if c['tool'] == 'chroot' and c['args'][1] == 'grub-install')
             self.assertIn('--removable', grub['args'])
             self.assertIn('--no-nvram', grub['args'])
@@ -90,9 +119,11 @@ class BuilderIntegration(unittest.TestCase):
             self.assertEqual(configured['hostname'], 'marinaos\n')
             final_detach = max(i for i, c in enumerate(calls)
                                if c['tool'] == 'losetup' and '-d' in c['args'])
-            first_hash = min(i for i, c in enumerate(calls) if c['tool'] == 'sha256sum')
-            self.assertLess(final_detach, first_hash)
+            image_hash = next(i for i, c in enumerate(calls) if c['tool'] == 'sha256sum'
+                              and c['args'] == [str(output)])
+            self.assertLess(final_detach, image_hash)
             self.assertTrue(output.with_suffix('.raw.manifest').exists())
+            self.assertTrue(output.with_suffix('.raw.marinaos-packages.sha256').exists())
             self.assertNotIn('talvik', log.read_text())
             self.assertNotIn('not-a-real-password', log.read_text())
 
@@ -101,6 +132,11 @@ class BuilderIntegration(unittest.TestCase):
 
     def test_failed_unmount_prevents_success_evidence(self):
         self.build(fail=True)
+
+    def test_rejects_unexpected_packages_before_bootstrap(self):
+        for defect in ('name', 'arch', 'version'):
+            with self.subTest(defect=defect):
+                self.build(bad_deb=defect)
 
 
 if __name__ == '__main__':

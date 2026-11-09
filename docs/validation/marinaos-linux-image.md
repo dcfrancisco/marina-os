@@ -56,11 +56,16 @@ and built image as sensitive deployment artifacts.
 ```sh
 sudo bash scripts/build-marinaos-linux-image.sh \
   --output /var/tmp/marinaos-noble-amd64.raw \
-  --admin-password-hash-file /private/path/admin.hash
+  --admin-password-hash-file /private/path/admin.hash \
+  --core-deb /private/path/marinaos-core_0.1.0_amd64.deb \
+  --cli-deb /private/path/marinaos-cli_0.1.0_amd64.deb
 ```
 
 The image includes Linux/systemd, an ordinary serial login, local diagnostics
-and package tools. It includes no Talvik, models, OID console or new OS daemon.
+and package tools. It installs the supplied matching amd64 MarinaOS core and CLI
+packages, enables `marinaosd`, and puts `marina-admin` in `marinaos-readers`.
+It includes no Talvik, models or OID console. The input package hashes are
+recorded alongside the image.
 Networking configuration is not yet qualified. Service startup is suppressed
 while packages are installed. Final fstab, hostname, machine identity reset,
 GRUB serial configuration and ESP contents follow the root filesystem copy.
@@ -91,6 +96,16 @@ a timeout or an early QEMU exit fail. Fixture tests of the harness are not QEMU
 qualification. The report explicitly leaves authenticated login, installation and
 reboot persistence untested. Complete those, package upgrade/recovery, firmware
 matrix and signed reproducible release inputs before claiming a distribution.
+
+For a disposable image built with a private test password file, add `--full
+--password-file /private/path/admin-password` to use a temporary persistent
+overlay and verify authenticated login, systemd readiness, service and CLI,
+service recovery, shutdown and a second boot with a persistence check. The
+overlay and firmware variables are created under the report directory; put it
+on the development SSD. The password is read from a private file, never passed
+on the kernel command line or intentionally written to serial evidence. This
+mode records each observed step and must not be treated as passing if it fails
+or times out. It does not qualify installation onto a target disk.
 
 ## Ubuntu M0 package qualification
 

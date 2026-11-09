@@ -5,6 +5,7 @@ artifacts/
 marina/bin/
 models/
 /.marina/
+/.marinaos-vm-work/
 *.gguf
 *.safetensors
 *.safetensors.index.json

@@ -2,11 +2,13 @@
 """Nonprivileged plan, safety and boot-harness tests; no disk tools are run."""
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import shutil
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = Path(__file__).resolve().parent
 
@@ -20,6 +22,7 @@ def module(name, filename):
 
 plan = module('image_plan', 'image-plan.py')
 qemu = module('qemu_boot', 'qualify-marinaos-qemu.py')
+lifecycle = module('lifecycle', 'marinaos_lifecycle.py')
 MANIFEST = SCRIPTS.parent / 'image/ubuntu-24.04-amd64.json'
 
 
@@ -64,6 +67,24 @@ class ImagePlan(unittest.TestCase):
                 self.assertEqual(result.returncode, 2)
                 self.assertIn('refusing existing', result.stderr)
                 self.assertEqual(existing.read_text(), 'do not truncate')
+
+    def test_missing_or_symlinked_packages_are_rejected_before_build(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)
+            password = path / 'hash'
+            password.write_text('$6$salt$hash')
+            core = path / 'core.deb'
+            core.write_bytes(b'fixture')
+            link = path / 'link.deb'
+            link.symlink_to(core)
+            output = path / 'disk.raw'
+            base = ['bash', str(SCRIPTS / 'build-marinaos-linux-image.sh'),
+                    '--output', str(output), '--admin-password-hash-file', str(password)]
+            for extra in ([], ['--core-deb', str(link), '--cli-deb', str(core)]):
+                result = subprocess.run(base + extra, capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('DEB regular files required', result.stderr)
+                self.assertFalse(output.exists())
 
 
 @unittest.skipUnless(shutil.which('parted') and shutil.which('sfdisk') and shutil.which('sgdisk'),
@@ -113,6 +134,46 @@ class BootHarness(unittest.TestCase):
 
     def test_kernel_output_is_not_boot_success(self):
         self.simulate('Linux kernel starting', False)
+
+    def test_lifecycle_command_failure_cannot_emit_success(self):
+        output = bytearray()
+        console = lifecycle.Console(['/bin/sh'], output, b'not-used')
+        try:
+            console.command('true', 'OK', timeout=2)
+            with self.assertRaisesRegex(RuntimeError, 'guest check failed'):
+                console.command('false', 'BROKEN', timeout=2)
+            self.assertNotIn(b'__M0_BROKEN__', output)
+        finally:
+            console.close()
+
+    def test_lifecycle_collects_shutdown_output(self):
+        output = bytearray()
+        console = lifecycle.Console(['/bin/sh', '-c', 'printf "Power down"'], output, b'not-used')
+        try:
+            console.wait_shutdown(2)
+            self.assertIn(b'Power down', output)
+        finally:
+            console.close()
+
+    def test_lifecycle_failure_is_recorded_and_password_redacted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp)
+            for name in ('disk.raw', 'code.fd', 'vars.fd'):
+                (path / name).write_bytes(b'fixture')
+            password = path / 'password'
+            password.write_bytes(b'unique-fixture-secret')
+            create = path / 'qemu-img'
+            create.write_text('#!/bin/sh\nfor x do last=$x; done\n: > "$last"\n')
+            create.chmod(0o755)
+            fake = path / 'qemu-system-x86_64'
+            fake.write_text('#!/bin/sh\nprintf "marinaos login: unique-fixture-secret"\nsleep 0.2\n')
+            fake.chmod(0o755)
+            report = path / 'lifecycle.json'
+            with mock.patch.dict(os.environ, {'PATH': str(path) + ':' + os.environ['PATH']}):
+                self.assertFalse(lifecycle.qualify(path / 'disk.raw', path / 'code.fd',
+                                 path / 'vars.fd', report, password, timeout=2))
+            self.assertEqual(json.loads(report.read_text())['status'], 'failed')
+            self.assertNotIn(b'unique-fixture-secret', report.with_suffix('.serial.txt').read_bytes())
 
 
 if __name__ == '__main__':

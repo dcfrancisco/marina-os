@@ -199,3 +199,11 @@ output. The initial Ubuntu base digest was
 The DEBs are local temporary test artifacts, not signed release deliverables.
 The next release blocker is a disposable Ubuntu 24.04 systemd VM to qualify
 service lifecycle and upgrade while running, followed by image boot and recovery.
+
+## Image composition follow-up
+
+WP-0088's Ubuntu image builder consumes the existing core and CLI DEBs directly,
+validates their names, architecture and matching versions, records input hashes,
+and enables the packaged service. Package inclusion in source or a mocked build
+is not evidence of installed-system or VM-boot qualification; use the observed
+WP-0088 build and QEMU evidence for those gates.

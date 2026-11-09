@@ -105,3 +105,19 @@ recovery. These remain mandatory before this WP can close.
 Implemented root-copy-before-fstab assembly shared by both builders, new-file-only image allocation, final hashing after unmount, and Ubuntu 24.04 amd64 UEFI/GPT foundation composition independent of Talvik. Added real nonprivileged rsync/GPT tests, stubbed builder failure tests, a QEMU boot harness and a foundation CI workflow. Debian BIOS/MBR remains historical. Actual Ubuntu construction and QEMU boot remain NOT TESTED: local tools are absent and sudo requires interactive authentication. This work package remains In Progress.
 
 Exact commands and results: [implementation report](../reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md).
+
+## MarinaOS package integration and lifecycle gate
+
+The Ubuntu builder now requires staged `marinaos-core` and `marinaos-cli` DEBs,
+checks package name, amd64 architecture and matching versions, records their
+SHA-256 hashes, installs them in the bootstrap root with service startup blocked,
+and enables `marinaosd`. The image administrator joins the read-only diagnostics
+access group. Tests use stubbed privileged commands and do not prove an image
+build or boot.
+
+The existing QEMU harness has an optional full offline lifecycle mode. It uses a
+persistent disposable overlay across two QEMU starts, and records observed login,
+systemd readiness, service and CLI, recovery after killing the daemon, shutdown,
+and persistence. It redacts the test password in serial evidence. The ordinary
+boot-to-login mode remains available. These claims are checks the harness performs;
+a run's results must be read from that run's report and serial log.
