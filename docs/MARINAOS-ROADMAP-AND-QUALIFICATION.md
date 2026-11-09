@@ -22,4 +22,39 @@ Companion UI, inference, model integration and desktop implementation are deferr
 Talvik remains optional; its tests do not gate Linux startup. External OIP and
 Delivery products are excluded, including from acceptance scenarios.
 
+## Milestone acceptance and tags
+
+Completed work packages receive normal commits; completing implementation alone
+does not qualify a milestone. Before accepting a milestone, record its qualifying
+commit SHA, each documented acceptance criterion, exact test commands and
+results, links to logs and artifact checksums, known limitations, and the
+explicit acceptance decision. Failures, blocked checks, and untested criteria
+remain visible and prevent acceptance. Container evidence cannot establish VM
+boot, systemd service behavior or recovery.
+
+For M0, the record must cover the foundation gates in the matrix above, including
+an offline disposable-VM installation and boot, authenticated administration,
+diagnostics, service and interrupted-update recovery, reboot and state retention,
+and the release provenance and signing requirements. M0 is **not accepted**.
+The existing package and container evidence does not satisfy these gates.
+
+After acceptance, and only then, create an annotated milestone tag at the
+qualifying commit. Never move, overwrite or reuse a tag; preserve existing tags
+and releases. A GitHub Release additionally requires verified artifacts, their
+checksums, installation instructions and known limitations. Artifact and package
+release requirements remain owned by [ADR-0052](adr/0052-installation-packaging-and-release-qualification.md),
+WP-0088 and WP-0089; this checklist does not replace their procedures.
+
+The following product milestone names are provisional, pending reconciliation
+with the historical [root roadmap](../ROADMAP.md) and ADRs. They do not change
+existing tag meanings or establish acceptance criteria for later milestones.
+
+| Milestone | Proposed annotated tag |
+| --- | --- |
+| M0 Linux foundation qualification | `v0.1.0-m0` |
+| M1 Bootable distribution and installer | `v0.2.0-m1` |
+| M2 System management and recovery | `v0.3.0-m2` |
+| M3 Desktop environment | `v0.4.0-m3` |
+| M4 Optional AI integration | `v0.5.0-m4` |
+
 Implementation evidence: [2026-11-09 corrective slice](reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md). Next dependency is actual construction and QEMU boot in a disposable privileged build VM.
