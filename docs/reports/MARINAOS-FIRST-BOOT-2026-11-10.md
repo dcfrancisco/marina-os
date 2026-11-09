@@ -1,6 +1,6 @@
 # MarinaOS first image: recovery and qualification record
 
-Status at this checkpoint: **IN PROGRESS**. The first offline UEFI run observed
+Status at this checkpoint: **STOPPED at the user's request**. The first offline UEFI run observed
 kernel startup, the serial login prompt and a successful administrator login,
 but the full lifecycle gate failed. It does not qualify installation, an ISO,
 the milestone or a release.
@@ -19,9 +19,12 @@ must not be committed. Transfer completed and the host image matched the guest's
 recorded SHA-256:
 `827fdc4aab5b12e42bc2e840e4dc2d6e58381057ad34b4ea3f87fd750f79b45b`.
 
-The 2026-11-10 preflight found 52 GiB available on the development filesystem,
-no `/dev/kvm`, and QEMU 8.2.2 plus matching 4 MiB OVMF code/variables files in
-the existing `marinaos-qemu-tools:local` container. The manifest plan and the
+The 2026-11-10 preflight found 52 GiB available on the development filesystem
+and no `/dev/kvm` visible in the sandbox. A later host check found AMD-V, loaded
+KVM modules and `/dev/kvm`, but the current user lacked read/write access, so
+the build and qualification used TCG. QEMU 8.2.2 and matching 4 MiB OVMF
+code/variables files are in the existing `marinaos-qemu-tools:local` container.
+The manifest plan and the
 builder and image fixture suites passed; these do not prove VM boot. The local
 QEMU tools container lacks `xorriso`, `mksquashfs`, `grub-mkrescue` and
 `grub-mkstandalone`; ISO construction is deferred until disk boot passes.
@@ -49,7 +52,7 @@ All exited zero; the two Python test suites reported 11 and 3 tests,
 respectively. They do not establish boot or service qualification.
 
 The resumed transfer used `.marinaos-vm-work/resume-transfer.sh` inside that
-container. The running qualification uses `--network none`, checked the
+container. The first qualification used `--network none`, checked the
 image's recorded SHA-256 first, then invokes:
 
 ```sh
@@ -64,7 +67,7 @@ python3 /source/scripts/qualify-marinaos-qemu.py \
 The container mounts the repository read-only at `/source` and the private SSD
 workspace at `/work`. The harness uses TCG and a disposable persistent overlay,
 and records a separate serial log. Its report, serial output, image digest and
-observed per-step outcomes remain pending at this checkpoint.
+the observed per-step outcomes appear below.
 
 The first run's `lifecycle-resumed.json` and `lifecycle-resumed.serial.txt`
 recorded **PASS** for the kernel and boot-to-login checks and **FAIL** for the
@@ -94,9 +97,65 @@ docker run --rm -v /home/danny/codes/marina-os:/source:ro \
   marinaos-qemu-tools:local bash /work/rebuild-dbus.sh
 ```
 
-At this checkpoint, Ubuntu archive metadata signature validation passed and the
-rebuild is still downloading and validating packages. The changed image is not
-yet built or boot-tested.
+Ubuntu archive metadata signature validation and base-system installation passed.
+The rebuild was stopped while apt/dpkg was configuring image packages. The changed
+image was not completed or boot-tested. The waiting `lifecycle-dbus` qualification
+was stopped before it started; Docker timed out its graceful stop and terminated
+its waiting container. No new lifecycle report was produced.
+
+## Stop and resume checkpoint — 2026-11-10
+
+The builder was paused before its ordinary cleanup could delete the incomplete
+root filesystem. The apt/dpkg transaction was sent termination, its child exited,
+and the three guest mounts (`root/sys`, `root/proc`, `root/dev`) were unmounted.
+The workspace was moved to `/home/builder/marinaos-build-interrupted-20261110`
+inside `.marinaos-vm-work/build-vm.qcow2`; its dpkg transaction was interrupted
+and must be audited before any reuse. The builder was then terminated and the
+guest was shut down. The builder emitted an expected cleanup warning for its old
+temporary path because the workspace had deliberately been moved and unmounted.
+Guest inspection before shutdown found no workspace mounts or loop devices. After
+shutdown, the identified builder and qualification containers and their QEMU
+processes were absent; host mount and loop-device inspection found no associations
+with this build. Existing unrelated host loop devices were left alone.
+
+The original `marinaos.raw`, its checksum, package files and both lifecycle
+reports and serial logs remain under `.marinaos-vm-work/`. No completed ISO or
+corrected `marinaos-db.raw` was produced. The development SSD had 49 GiB free
+at shutdown. No binary image or private credential is committed.
+
+The following commands later start a **copy** of the stopped build VM for
+inspection only, without replacing the preserved disk or starting another build.
+They require the existing local tools container and private working files. Run
+from the repository root; wait for the VM to reach SSH before the inspection.
+
+```sh
+test ! -e .marinaos-vm-work/build-vm-resume.qcow2
+cp --no-clobber --sparse=always .marinaos-vm-work/build-vm.qcow2 .marinaos-vm-work/build-vm-resume.qcow2
+docker run -d --name marinaos-resume-inspect --network none \
+  -v /home/danny/codes/marina-os/.marinaos-vm-work:/work \
+  --entrypoint qemu-system-x86_64 marinaos-qemu-tools:local \
+  -machine q35 -accel tcg -cpu max -smp 3 -m 3072 \
+  -display none -monitor none -serial file:/work/resume-inspect.serial.txt \
+  -drive if=virtio,format=qcow2,file=/work/build-vm-resume.qcow2 \
+  -drive if=virtio,media=cdrom,format=raw,readonly=on,file=/work/seed.iso \
+  -nic user,model=virtio-net-pci,hostfwd=tcp:127.0.0.1:2222-:22
+docker exec marinaos-resume-inspect ssh -i /work/builder-key -p 2222 \
+  -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/work/known_hosts \
+  builder@127.0.0.1 'sudo chroot /home/builder/marinaos-build-interrupted-20261110/root dpkg --audit'
+docker exec marinaos-resume-inspect ssh -i /work/builder-key -p 2222 \
+  -o BatchMode=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=/work/known_hosts \
+  builder@127.0.0.1 'sudo systemctl poweroff'
+```
+
+The existing builder always creates a fresh root filesystem and does **not**
+resume this interrupted transaction. Resumption requires auditing and repairing
+the copied rootfs and adding a tested continuation to the existing builder, or
+performing a new build; neither has been done. Prefer native amd64 rootfs work
+with retained package caches in an appropriately isolated environment for future
+builds, using QEMU for qualification. The present rootless Docker setup cannot be
+assumed to provide the mount, chroot and loop-device access the builder needs.
+The full disk lifecycle checks, D-Bus fix verification, ISO construction and ISO
+qualification remain blocked on completing a corrected image. M0 is not accepted.
 
 The exact host command that queued the run was:
 
