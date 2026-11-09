@@ -2,6 +2,40 @@
 use marinaos_core::{authorized, dispatch, parse_request, Request};
 
 #[test]
+fn systemd_states_do_not_assume_health() {
+    assert_eq!(marinaos_core::systemd_status("running"), "healthy");
+    assert_eq!(marinaos_core::systemd_status("degraded"), "degraded");
+    for state in ["starting", "offline", "", "unknown"] {
+        assert_eq!(marinaos_core::systemd_status(state), "unavailable");
+    }
+}
+
+#[test]
+fn local_reader_membership_fails_closed() {
+    use marinaos_core::local_group_authorized;
+    let passwd = "alice:x:1001:1001::/home/alice:/bin/sh\nbob:x:1002:2000::/home/bob:/bin/sh\n";
+    let groups = "marinaos-readers:x:2000:alice\n";
+    assert!(local_group_authorized(1001, passwd, groups));
+    assert!(local_group_authorized(1002, passwd, groups));
+    assert!(!local_group_authorized(1003, passwd, groups));
+    assert!(!local_group_authorized(
+        1001,
+        passwd,
+        "marinaos-readers:x:2000:malice\n"
+    ));
+    assert!(!local_group_authorized(
+        1001,
+        &format!("{passwd}evil:x:1001:1::/:/bin/sh\n"),
+        groups
+    ));
+    assert!(!local_group_authorized(
+        1001,
+        passwd,
+        &format!("{groups}{groups}")
+    ));
+}
+
+#[test]
 fn contract_validation_and_access_policy() {
     assert!(authorized(0, 10));
     assert!(authorized(10, 10));
@@ -64,7 +98,11 @@ fn socket_protocol_and_input_limits() {
 
 #[test]
 fn unauthorized_peer_is_rejected() {
-    use std::{io::Read, os::unix::net::UnixStream, thread};
+    use std::{
+        io::{Read, Write},
+        os::unix::net::UnixStream,
+        thread,
+    };
     let uid = rustix::process::geteuid().as_raw();
     if uid == 0 {
         return;
@@ -73,6 +111,10 @@ fn unauthorized_peer_is_rejected() {
     let worker = thread::spawn(move || {
         marinaos_core::serve_connection(server, uid.wrapping_add(1)).unwrap()
     });
+    client
+        .write_all(br#"{"version":1,"method":"version"}"#)
+        .unwrap();
+    client.shutdown(std::net::Shutdown::Write).unwrap();
     let mut response = String::new();
     client.read_to_string(&mut response).unwrap();
     worker.join().unwrap();

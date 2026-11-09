@@ -21,3 +21,15 @@ Secrets never enter model context unless explicitly authorized.
 Keep current policy engine; define principal/scope contracts before privileged
 services. Accept with unauthorized, approval, replay, and privilege tests. Open:
 whether a separate system executor is needed.
+
+## M0 read-only diagnostics implementation
+
+WP-0089 implements a limited local diagnostics boundary. The socket and its
+directory admit the `marinaos-readers` group, but the daemon independently
+checks the kernel peer UID against root, its service UID, or membership in that
+group in the local `/etc/passwd` and `/etc/group` databases. Missing or
+ambiguous local records fail closed; directory-backed NSS accounts are not yet
+supported. Membership grants only the protocol's read-only methods. It does
+not grant approval or authority for future operations. The client checks the
+service UID, socket owner and directory for the standard system path. A custom
+development socket path requires a trusted directory.

@@ -402,14 +402,38 @@ impl SystemdHealthAdapter for CommandSystemdHealthAdapter {
                 "systemd requires a Linux host".to_owned(),
             ));
         }
-        let output = std::process::Command::new("systemctl")
+        let mut child = std::process::Command::new("/usr/bin/systemctl")
             .args(["is-system-running"])
-            .output()
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn()
             .map_err(|error| OidError::Execution(format!("run systemctl: {error}")))?;
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(1);
+        loop {
+            match child.try_wait() {
+                Ok(Some(_)) => break,
+                Ok(None) if std::time::Instant::now() < deadline => {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Ok(None) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(OidError::Execution("systemd query timed out".to_owned()));
+                }
+                Err(error) => {
+                    let _ = child.kill();
+                    let _ = child.wait();
+                    return Err(OidError::Execution(format!("systemd query: {error}")));
+                }
+            }
+        }
+        let output = child
+            .wait_with_output()
+            .map_err(|error| OidError::Execution(format!("read systemctl: {error}")))?;
         let state = String::from_utf8_lossy(&output.stdout).trim().to_owned();
         if state.is_empty() {
             return Err(OidError::Execution(
-                String::from_utf8_lossy(&output.stderr).trim().to_string(),
+                "systemd manager unavailable".to_owned(),
             ));
         }
         Ok(state)

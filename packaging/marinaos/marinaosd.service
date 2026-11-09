@@ -5,9 +5,9 @@ After=local-fs.target
 [Service]
 Type=simple
 User=marinaos
-Group=marinaos
+Group=marinaos-readers
 RuntimeDirectory=marinaos
-RuntimeDirectoryMode=0755
+RuntimeDirectoryMode=0750
 ExecStart=/usr/bin/marinaosd
 Restart=on-failure
 RestartSec=2s

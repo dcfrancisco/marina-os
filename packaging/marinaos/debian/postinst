@@ -1,0 +1,12 @@
+#!/bin/sh
+set -eu
+if [ "$1" = configure ]; then
+    systemd-sysusers /usr/lib/sysusers.d/marinaos.conf
+    if command -v deb-systemd-helper >/dev/null; then
+        deb-systemd-helper enable marinaosd.service >/dev/null
+    fi
+    if [ -d /run/systemd/system ]; then
+        systemctl daemon-reload
+        deb-systemd-invoke restart marinaosd.service >/dev/null
+    fi
+fi

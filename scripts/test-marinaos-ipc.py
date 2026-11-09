@@ -24,6 +24,8 @@ with tempfile.TemporaryDirectory(prefix="marinaos-ipc-") as directory:
             output = subprocess.check_output([str(root / "target/debug/marinaosctl"), command, "--json"], env=env)
             result = json.loads(output)
             assert result is not None, command
+            if command == "status":
+                print("observed systemd:", json.dumps(result["systemd"], sort_keys=True))
         print("all CLI commands succeeded over authenticated local IPC")
     finally:
         daemon.terminate()

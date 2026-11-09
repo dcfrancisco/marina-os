@@ -1,5 +1,6 @@
 //! Versioned read-only MarinaOS local protocol and Linux observations.
 #![cfg(target_os = "linux")]
+use oid_linux_skills::{CommandSystemdHealthAdapter, SystemdHealthAdapter};
 use serde_json::{json, Value};
 use std::{
     fs,
@@ -43,8 +44,23 @@ fn field(path: &str, key: &str) -> Option<String> {
     })
 }
 fn health() -> Value {
-    let present = std::path::Path::new("/run/systemd/system").is_dir();
-    json!({"manager_state": null, "error": "systemd manager state not queried", "runtime_directory_present": present})
+    match CommandSystemdHealthAdapter.manager_state() {
+        Ok(state) => {
+            let status = systemd_status(&state);
+            json!({"status": status, "manager_state": state, "error": null})
+        }
+        Err(_) => {
+            json!({"status":"unavailable", "manager_state":null, "error":"systemd manager query failed"})
+        }
+    }
+}
+/// Map systemd's reported state without treating transitional states as healthy.
+pub fn systemd_status(state: &str) -> &'static str {
+    match state {
+        "running" => "healthy",
+        "degraded" => "degraded",
+        _ => "unavailable",
+    }
 }
 pub fn dispatch(request: Request) -> Response {
     if request.version != VERSION {
@@ -92,16 +108,57 @@ pub fn parse_request(data: &[u8]) -> Option<Request> {
 }
 
 pub fn authorized(peer_uid: u32, service_uid: u32) -> bool {
-    peer_uid == 0 || peer_uid == service_uid
+    if peer_uid == 0 || peer_uid == service_uid {
+        return true;
+    }
+    match (
+        fs::read_to_string("/etc/passwd"),
+        fs::read_to_string("/etc/group"),
+    ) {
+        (Ok(passwd), Ok(group)) => local_group_authorized(peer_uid, &passwd, &group),
+        _ => false,
+    }
+}
+
+/// Resolve membership from local account databases; ambiguous identities fail closed.
+pub fn local_group_authorized(uid: u32, passwd: &str, group: &str) -> bool {
+    let accounts: Vec<_> = passwd
+        .lines()
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split(':').collect();
+            if fields.len() < 4 || fields[2].parse::<u32>().ok()? != uid {
+                return None;
+            }
+            Some((fields[0], fields[3].parse::<u32>().ok()?))
+        })
+        .collect();
+    let groups: Vec<_> = group
+        .lines()
+        .filter_map(|line| {
+            let fields: Vec<_> = line.split(':').collect();
+            if fields.len() != 4 || fields[0] != "marinaos-readers" {
+                return None;
+            }
+            Some((fields[2].parse::<u32>().ok()?, fields[3]))
+        })
+        .collect();
+    if accounts.len() != 1 || groups.len() != 1 {
+        return false;
+    }
+    let (name, primary_gid) = accounts[0];
+    let (gid, members) = groups[0];
+    primary_gid == gid
+        || members
+            .split(',')
+            .any(|member| !member.is_empty() && member == name)
 }
 
 pub fn serve_connection(mut stream: UnixStream, service_uid: u32) -> io::Result<()> {
     stream.set_read_timeout(Some(TIMEOUT))?;
     stream.set_write_timeout(Some(TIMEOUT))?;
     let peer = rustix::net::sockopt::get_socket_peercred(&stream).map_err(io::Error::from)?;
-    let response = if !authorized(peer.uid.as_raw(), service_uid) {
-        error("unauthorized")
-    } else {
+    let permitted = authorized(peer.uid.as_raw(), service_uid);
+    let response = {
         let mut buf = Vec::new();
         let deadline = std::time::Instant::now() + TIMEOUT;
         let read = loop {
@@ -122,6 +179,7 @@ pub fn serve_connection(mut stream: UnixStream, service_uid: u32) -> io::Result<
             }
         };
         match read {
+            Ok(_) if !permitted => error("unauthorized"),
             Ok(_) if buf.len() as u64 > LIMIT => error("request_too_large"),
             Ok(_) => match parse_request(&buf) {
                 Some(req) => dispatch(req),
@@ -143,6 +201,30 @@ pub fn call(path: &str, method: &str) -> Result<Response, String> {
     let peer = rustix::net::sockopt::get_socket_peercred(&stream).map_err(|e| e.to_string())?;
     if !metadata.file_type().is_socket() || metadata.uid() != peer.uid.as_raw() {
         return Err("daemon identity does not match socket owner".into());
+    }
+    if path == SOCKET {
+        let passwd =
+            fs::read_to_string("/etc/passwd").map_err(|_| "cannot verify daemon account")?;
+        let uids: Vec<u32> = passwd
+            .lines()
+            .filter_map(|line| {
+                let fields: Vec<_> = line.split(':').collect();
+                if fields.len() < 3 || fields[0] != "marinaos" {
+                    return None;
+                }
+                fields[2].parse().ok()
+            })
+            .collect();
+        let parent =
+            fs::symlink_metadata("/run/marinaos").map_err(|_| "cannot verify daemon directory")?;
+        if uids.len() != 1
+            || uids[0] != peer.uid.as_raw()
+            || !parent.is_dir()
+            || parent.uid() != uids[0]
+            || parent.mode() & 0o022 != 0
+        {
+            return Err("untrusted daemon identity or directory".into());
+        }
     }
     stream
         .set_read_timeout(Some(TIMEOUT))

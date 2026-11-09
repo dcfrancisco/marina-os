@@ -31,7 +31,7 @@ mod linux {
             fs::remove_file(&path)?;
         }
         let listener = UnixListener::bind(&path)?;
-        fs::set_permissions(&path, fs::Permissions::from_mode(0o600))?;
+        fs::set_permissions(&path, fs::Permissions::from_mode(0o660))?;
         listener.set_nonblocking(true)?;
         let stopping = Arc::new(AtomicBool::new(false));
         signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&stopping))?;

@@ -111,3 +111,45 @@ not install or start the systemd unit. Strict workspace Clippy and formatting
 passed; the workspace test suite passed outside the sandbox with
 `LD_LIBRARY_PATH=/home/danny/.marina/lib`. Without that library path, the
 existing console test executable failed to load `libllama.so.0`.
+
+## Ordinary-reader access and native package slice
+
+The standard socket directory is owned by the service UID and the
+`marinaos-readers` group, mode 0750; the socket is mode 0660. `SO_PEERCRED`
+UIDs are checked against local account and group files independently of socket
+access. Root and the daemon UID also have read-only access. Missing or ambiguous
+records fail closed; NSS-only accounts are not supported. The standard-path
+client verifies the peer against the local service UID, socket owner and
+non-writable parent directory. Custom socket paths remain a development trust
+boundary. The existing systemd adapter now has a one-second process deadline;
+the daemon distinguishes running, degraded and unavailable manager states.
+See [protocol v1](../ipc/marinaos-v1.md) and ADR-0042.
+
+`scripts/package-marinaos-deb.sh` builds separate core and CLI DEBs from existing
+binaries, derives shared-library dependencies, installs the systemd unit and
+sysusers definition, and uses Debian systemd helpers. No Talvik, model, GPU or
+compiler payload is included. The system account is retained after removal;
+`/var/lib/marinaos` is not package-owned or deleted. Build on the oldest
+supported target to avoid a newer glibc requirement. These are development
+artifacts, not signed or release-qualified packages.
+
+Evidence from this workspace: 0.1.0 and 0.1.1 DEBs built from the same debug binaries on
+Ubuntu 26.04 with dependencies computed by `dpkg-shlibdeps`; their libc6 minimum
+was 2.39. `scripts/test-marinaos-ubuntu-container.sh` passed in a disposable
+Ubuntu 24.04 container (base digest
+`sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852`).
+It installed packages and dependencies, started and restarted the daemon manually
+under its dedicated account, checked reader access, outsider denial, inability
+to write the socket directory, revocation despite a retained process group,
+upgrade, removal, and retention of a test file and service account. One initial
+revocation test exposed a connection reset; after fixing the daemon to read a
+bounded request before returning `unauthorized`, the complete test passed.
+
+The container had no systemd PID 1, and `policy-rc.d` suppressed service starts.
+Thus actual systemd-managed startup, restart, running-service upgrade, boot,
+policy under a real system manager, purge, and installation on a clean Ubuntu
+VM remain unverified. A host read-only systemd query and the temporary daemon
+both reported `degraded`; an inaccessible bus reports unavailable. Rust fmt,
+strict workspace Clippy and `cargo test --workspace --offline` passed; the latter
+required outside-sandbox Unix sockets and `LD_LIBRARY_PATH=/home/danny/.marina/lib`.
+No host packages, services or physical disks were modified.
