@@ -1,6 +1,6 @@
 # ADR-0048: OIP intelligence interoperability
 
-- Status: Proposed
+- Status: Withdrawn from MarinaOS scope (2026-11-09)
 - Related: ADR-0015, ADR-0038
 
 ## Context
@@ -19,3 +19,10 @@ identity, consent, and transmission policy.
 ## Migration, acceptance, open questions
 Add adapter after local Talvik proof. Accept disconnect, consent, redaction, and
 fallback tests. Open: stable OIP protocol version.
+
+## Scope withdrawal — 2026-11-09
+
+Withdrawn on explicit product direction. OIP and Delivery One/Delivery OS are
+outside MarinaOS architecture and implementation. The proposal above is retained
+only as historical context; no adapter, contract, dependency or acceptance gate
+is authorized. See the [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

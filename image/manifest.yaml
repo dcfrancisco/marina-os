@@ -1,10 +1,12 @@
+# Historical Debian BIOS prototype; Ubuntu foundation uses ubuntu-24.04-amd64.json.
 schema: oid-linux-image/v1
 base:
   distribution: debian
   release: bookworm
   architecture: amd64
   init: systemd
-  image_type: raw-gpt-disk
+  image_type: raw-mbr-disk
+  firmware: bios
   offline_boot: true
 packages:
   - ca-certificates

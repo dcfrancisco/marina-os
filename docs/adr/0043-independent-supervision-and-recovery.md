@@ -18,3 +18,9 @@ and evidence. Recovery may produce an unverified state rather than a false succe
 ## Migration, acceptance, open questions
 Extend operation journal and runtime health; accept crash, stall, cancellation,
 and reconciliation tests. Open: watchdog placement on image boot.
+
+## Linux foundation reconciliation — 2026-11-09
+
+Clarify supervision ownership: systemd owns process/service lifecycle and restart; the existing coordinator owns operation progress and reconciliation. A separate process supervisor is not authorized. Linux recovery remains available without model or OS-management services. WP-0088 validates boot failure and recovery; logical-stall handling remains later work.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

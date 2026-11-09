@@ -1,0 +1,178 @@
+    Blocking waiting for file lock on build directory
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.70s
+     Running unittests src/lib.rs (target/debug/deps/oid_common-507c8bdcb6e48683)
+
+running 2 tests
+test operation::tests::mutating_plan_requires_approval ... ok
+test operation::tests::plan_serialization_contains_intent_and_rollback_steps ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-00633812046ecf44)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_desktop_shell-66e68341e3a95931)
+
+running 2 tests
+test tests::exposes_help_and_completion_for_loaded_capabilities ... ok
+test tests::routes_native_dynamic_and_intent_inputs ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-b0eabc978eb92291)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_evidence_engine-60251c137163b8b1)
+
+running 3 tests
+test tests::evidence_is_append_only_and_filterable ... ok
+test tests::file_store_round_trips_records ... ok
+test tests::inference_evidence_survives_store_reopen_and_duplicate_append ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-400cd2d4b802d707)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_intent_runtime-84f03e17317a8e56)
+
+running 2 tests
+test tests::accepts_the_happy_path_through_verification ... ok
+test tests::rejects_skipping_authorization ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-2236bcf9a33c0c20)
+
+running 3 tests
+test crate_boundary_is_reachable ... ok
+test diagnostic_proposal_is_typed_and_requires_verification ... ok
+test incomplete_proposal_is_rejected_before_planning ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_linux_skills-8bc8e017acbf6893)
+
+running 5 tests
+test tests::process_filesystem_and_systemd_skills_are_read_only ... ok
+test tests::directory_skill_rejects_unsafe_paths ... ok
+test tests::directory_skill_can_rollback_its_empty_directory ... ok
+test tests::read_only_inspection_skills_produce_non_mutating_plans ... ok
+test tests::system_health_is_read_only_and_has_no_rollback ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-3270bdf67f8c575b)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_operation_coordinator-bdb514ed378500d3)
+
+running 5 tests
+test tests::coordinates_read_only_execution_and_evidence ... ok
+test tests::interruption_after_execution_before_verification_is_unverified ... ok
+test tests::interruption_after_execution_evidence_preserves_the_evidence_chain ... ok
+test tests::restart_classifies_unfinished_execution_without_fabricating_success ... ok
+test tests::interruption_during_execution_is_recoverable_without_success ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_policy_engine-12e0218e812db671)
+
+running 3 tests
+test tests::read_only_operations_are_allowed ... ok
+test tests::mutating_operations_require_approval ... ok
+test tests::durable_approval_journal_recovers_pending_and_approved_operations ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-95fe01b739952cd0)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/lib.rs (target/debug/deps/oid_verification_engine-918740e39067fd24)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-1b9a5e5282f8de73)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oid_common
+
+running 1 test
+test crates/common/src/lib.rs - crate_name (line 137) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests oid_desktop_shell
+
+running 1 test
+test crates/desktop-shell/src/lib.rs - boundary_name (line 237) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests oid_evidence_engine
+
+running 1 test
+test crates/evidence-engine/src/lib.rs - boundary_name (line 387) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests oid_intent_runtime
+
+running 1 test
+test crates/intent-runtime/src/lib.rs - boundary_name (line 271) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests oid_linux_skills
+
+running 1 test
+test crates/linux-skills/src/lib.rs - boundary_name (line 942) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.13s
+
+   Doc-tests oid_operation_coordinator
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests oid_policy_engine
+
+running 1 test
+test crates/policy-engine/src/lib.rs - boundary_name (line 373) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+
+   Doc-tests oid_verification_engine
+
+running 1 test
+test crates/verification-engine/src/lib.rs - boundary_name (line 91) ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.14s
+

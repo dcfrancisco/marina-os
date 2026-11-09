@@ -49,6 +49,7 @@ ln -s /usr/lib/talvik/bin/talvikd "$PKG/usr/bin/talvikd"
 cat >"$PKG/DEBIAN/control" <<EOF
 Package: talvik
 Version: $VERSION
+Conflicts: oid-marina
 Section: utils
 Priority: optional
 Architecture: $ARCH

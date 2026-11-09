@@ -1,0 +1,88 @@
+   Compiling oid-llama-cpp-sys v0.1.0 (/home/danny/codes/marina-os/runtime/adapters/llama-cpp/sys)
+   Compiling oid-llama-cpp-adapter v0.1.0 (/home/danny/codes/marina-os/runtime/adapters/llama-cpp)
+   Compiling oid-runtime v0.1.0 (/home/danny/codes/marina-os/runtime)
+   Compiling oid-console v0.1.0 (/home/danny/codes/marina-os/console)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 8.70s
+     Running unittests src/lib.rs (target/debug/deps/oid_common-507c8bdcb6e48683)
+
+running 2 tests
+test operation::tests::mutating_plan_requires_approval ... ok
+test operation::tests::plan_serialization_contains_intent_and_rollback_steps ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-00633812046ecf44)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/oid_console-bf1bcc38668d72b4)
+
+running 43 tests
+test audio::tests::parses_supported_gain_and_mute_controls ... ok
+test chat_ui::tests::cancellation_notice_starts_a_new_line_after_streamed_text ... ok
+test audio::tests::falls_back_to_pulseaudio ... ok
+test audio::tests::sets_pipewire_gain_with_a_three_x_limit ... ok
+test chat_ui::tests::empty_thinking_wrappers_do_not_create_empty_sections ... ok
+test chat_ui::tests::no_color_keeps_readable_phase_labels_without_ansi ... ok
+test chat_ui::tests::ordinary_answers_do_not_claim_thinking_and_stream_before_newlines ... ok
+test chat_ui::tests::partial_markup_is_flushed_and_terminal_controls_are_filtered ... ok
+test chat_ui::tests::redirects_dumb_terminals_and_plain_are_unstyled ... ok
+test chat_ui::tests::thinking_and_generation_use_distinct_colors ... ok
+test chat_ui::tests::arbitrary_token_boundaries_do_not_change_formatting ... ok
+test commands::tests::generation_uses_configured_model_when_http_residency_is_unknown ... ok
+test editor::tests::supports_editing_operations ... ok
+test foundation::tests::vertical_slice_publishes_lifecycle_and_evidence_events ... ok
+test input_router::tests::routes_shell_and_oid_namespaces ... ok
+test history::tests::navigates_back_and_forward ... ok
+test ipc::tests::running_socket_is_preserved_and_stale_socket_can_be_restarted ... FAILED
+test ipc_runtime::tests::generation_reader_streams_tokens_and_cleans_up_request_state ... FAILED
+test history::tests::persists_and_reloads_commands ... ok
+test ipc_runtime::tests::generation_terminal_parser_preserves_metrics_and_generation_identity ... ok
+test ipc_runtime::tests::legacy_generation_terminal_keeps_available_token_count_unknown_metrics ... ok
+test ipc_runtime::tests::snapshot_parser_does_not_promote_registry_loaded_status_to_residency ... ok
+test ipc_runtime::tests::snapshot_parser_uses_remote_runtime_metrics ... ok
+test ipc_runtime::tests::status_parser_preserves_empty_loaded_model_fields ... ok
+test ipc_runtime::tests::generation_request_line_carries_images_and_structured_output ... ok
+test ipc_runtime::tests::generation_request_preserves_options_and_prompt_text ... ok
+test operations::tests::directory_intent_survives_restart_and_can_be_inspected_and_rolled_back ... ok
+test presence::tests::status_state_changes_only_after_runtime_events ... ok
+test prompt::tests::dot_prompt_uses_the_real_cursor_without_presence_glyphs ... ok
+test prompt::tests::long_input_stays_on_one_row_and_tracks_cursor_navigation ... ok
+test prompt::tests::cursor_position_respects_wide_and_combining_text ... ok
+test shell::tests::cd_updates_persistent_directory_and_supports_cd_dash ... ok
+test signals::tests::injected_signals_are_deterministic_and_distinct ... ok
+test signals::tests::repeated_interrupts_are_idempotently_consumed ... ok
+test status_bar::tests::default_footer_contains_only_state_model_and_help ... ok
+test status_bar::tests::footer_stays_on_one_row_with_wide_model_names_and_small_terminals ... ok
+test status_bar::tests::supports_configurable_display_modes ... ok
+test shell::tests::shell_executes_pipelines_and_redirection ... ok
+test commands::tests::exit_is_explicit ... ok
+test status_bar::tests::unavailable_runtime_does_not_claim_that_no_model_is_loaded ... ok
+test commands::tests::operation_commands_use_the_session_coordinator ... ok
+test commands::tests::built_in_commands_return_mock_information ... ok
+test shell::tests::interrupted_child_returns_signal_status_and_leaves_parent_usable ... ok
+
+failures:
+
+---- ipc::tests::running_socket_is_preserved_and_stale_socket_can_be_restarted stdout ----
+
+thread 'ipc::tests::running_socket_is_preserved_and_stale_socket_can_be_restarted' (3016) panicked at console/src/ipc.rs:187:56:
+first daemon: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+
+---- ipc_runtime::tests::generation_reader_streams_tokens_and_cleans_up_request_state stdout ----
+
+thread 'ipc_runtime::tests::generation_reader_streams_tokens_and_cleans_up_request_state' (3017) panicked at console/src/ipc_runtime.rs:1118:14:
+write mock generation: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    ipc::tests::running_socket_is_preserved_and_stale_socket_can_be_restarted
+    ipc_runtime::tests::generation_reader_streams_tokens_and_cleans_up_request_state
+
+test result: FAILED. 41 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.15s
+
+error: test failed, to rerun pass `-p oid-console --bin oid-console`

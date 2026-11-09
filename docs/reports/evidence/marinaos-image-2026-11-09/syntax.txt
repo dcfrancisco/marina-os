@@ -1,0 +1,11 @@
+bash -n scripts/build-marinaos-linux-image.sh: exit 0
+sh -n scripts/build-oid-linux-image.sh: exit 0
+sh -n scripts/lib/image-rootfs.sh: exit 0
+bash -n scripts/package-oid-deb.sh: exit 0
+bash -n scripts/package-talvik-deb.sh: exit 0
+ast.parse scripts/image-plan.py: PASS
+ast.parse scripts/qualify-marinaos-qemu.py: PASS
+ast.parse scripts/test-image-rootfs.py: PASS
+ast.parse scripts/test-marinaos-image.py: PASS
+ast.parse scripts/test-marinaos-builder.py: PASS
+ast.parse scripts/test-linux-package-ownership.py: PASS

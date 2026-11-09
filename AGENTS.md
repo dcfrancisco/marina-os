@@ -1,4 +1,11 @@
-# OID assistant and multi-agent instructions
+# MarinaOS assistant and multi-agent instructions
+
+> Current direction (2026-11-09): MarinaOS is the Linux operating-system
+> product. M0 prioritizes an independently installable and bootable Ubuntu 24.04
+> LTS amd64 foundation. Talvik is optional and cannot gate Linux startup.
+> OIP and Delivery One/Delivery OS are outside this project. Historical sections
+> below retain compatibility and implementation history; conflicting priority
+> statements are superseded by the [Linux foundation reconciliation](docs/reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
 
 This file is the durable briefing for AI assistants working in this repository.
 Read it before acting. Do not ask the user to restate this project context when

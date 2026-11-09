@@ -1,26 +1,25 @@
 # MarinaOS roadmap and qualification matrix
 
-| Milestone | Outcome | Gate | Current status |
+Current priority: **M0 — Linux foundation** (2026-11-09).
+See the [reconciliation and readiness report](reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+Earlier inference-first milestone sequencing is superseded for the OS product;
+existing Talvik milestones retain their independent history.
+
+| M0 step | Existing owner | Required evidence | Status |
 | --- | --- | --- | --- |
-| 1 | Services and Talvik installed on supported Ubuntu | clean-machine install, local inference, diagnostic proof | Packaging exists; qualification evidence incomplete |
-| 2 | Reproducible image | pinned manifest and deterministic build | Image assets exist; not a release |
-| 3 | Bootable artifact | VM boot, readiness, degraded AI behavior | Proposed/WP-0088 in progress |
-| 4 | Installation and recovery | upgrade, rollback, data retention, recovery | Planned |
-| 5 | Hardware matrix | CPU/GPU/network/storage/input qualification | CPU-first; real Linux evidence required |
+| Correct image staging, then validate migration | WP-0088, ADR-0050 | Nonprivileged staging regression; Debian history preserved; Ubuntu 24.04 amd64 explicit | Assembly/GPT contracts implemented and tested; actual build unqualified |
+| Reconcile packages and boot units | WP-0089, ADR-0046/0052 | Single package owner per path/unit, state retention, no mandatory Talvik | Mutual package conflicts implemented; migration and service qualification open |
+| Build Ubuntu foundation | WP-0088 | Pinned inputs, manifest, toolchain/package provenance, final artifact hashes | NOT TESTED |
+| Install and boot in disposable VM | WP-0088, ADR-0050/0052 | Firmware-specific boot, install, ordinary login and reboot without Talvik or network | NOT TESTED |
+| Diagnostics and recovery | Existing policy/evidence/coordinator; ADR-0042/0043/0051 | Failure, interrupted-update and retained-state evidence; OS principal authorization | INCOMPLETE libraries; NOT TESTED as distribution |
+| Qualify release | ADR-0052 | Signatures, checksums, supported hardware/firmware matrix and reproducible procedure | NOT TESTED |
 
-## Acceptance status
+WP-0112–0124 and ADR-0053–0062 are absent from the reviewed checkout and cannot
+be marked ready or accepted. Restore their source for reconciliation rather than
+allocating duplicate work. Existing WP-0088/0089 remain the foundation owners.
 
-The 24 requested acceptance scenarios are **proposed** unless covered by the
-existing tests and reports. Existing evidence covers parts of intent lifecycle,
-approval, durable operation recovery, read-only skills, Talvik model/runtime
-contracts, package smoke checks, and hardware discovery. It does not yet prove
-a complete natural-language-to-diagnosis-to-remedy workflow on a clean Linux
-machine, nor a bootable MarinaOS release.
+Companion UI, inference, model integration and desktop implementation are deferred.
+Talvik remains optional; its tests do not gate Linux startup. External OIP and
+Delivery products are excluded, including from acceptance scenarios.
 
-Required next evidence includes: clean Ubuntu package install and uninstall;
-real local inference; local-only operation with OIP unavailable; truthful CPU
-fallback; crash/replay/stall/cancellation tests; diagnostic receipt with
-before/after measurements; and VM boot/recovery evidence.
-
-The smallest independently verifiable slice delivered with this plan is the
-`IntentProposal` contract and integration tests in `crates/intent-runtime`.
+Implementation evidence: [2026-11-09 corrective slice](reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md). Next dependency is actual construction and QEMU boot in a disposable privileged build VM.

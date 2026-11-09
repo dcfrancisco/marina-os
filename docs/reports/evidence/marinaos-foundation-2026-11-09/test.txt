@@ -1,0 +1,91 @@
+   Compiling oid-common v0.1.0 (/home/danny/codes/marina-os/crates/common)
+   Compiling serde_core v1.0.229
+   Compiling zmij v1.0.23
+   Compiling memchr v2.8.3
+   Compiling serde_json v1.0.151
+   Compiling itoa v1.0.18
+   Compiling cfg-if v1.0.5
+   Compiling simd-adler32 v0.3.10
+   Compiling libc v0.2.189
+   Compiling crc32fast v1.5.3
+   Compiling adler2 v2.0.1
+   Compiling autocfg v1.5.1
+   Compiling bitflags v2.13.2
+   Compiling miniz_oxide v0.9.1
+   Compiling miniz_oxide v0.8.9
+   Compiling num-traits v0.2.19
+   Compiling fdeflate v0.3.7
+   Compiling flate2 v1.1.10
+   Compiling weezl v0.1.12
+   Compiling color_quant v1.1.0
+   Compiling pxfm v0.1.30
+   Compiling zune-core v0.5.3
+   Compiling png v0.18.1
+   Compiling gif v0.14.2
+   Compiling byteorder-lite v0.1.0
+   Compiling zune-jpeg v0.5.15
+   Compiling bytemuck v1.25.2
+   Compiling crossbeam-utils v0.8.23
+   Compiling oid-llama-cpp-sys v0.1.0 (/home/danny/codes/marina-os/runtime/adapters/llama-cpp/sys)
+   Compiling oid-plugin-sdk v0.1.0 (/home/danny/codes/marina-os/crates/plugin-sdk)
+   Compiling crossbeam-epoch v0.9.21
+   Compiling oid-shared v0.1.0 (/home/danny/codes/marina-os/shared)
+   Compiling crossbeam-deque v0.8.8
+   Compiling rayon-core v1.13.0
+   Compiling oid-evidence-engine v0.1.0 (/home/danny/codes/marina-os/crates/evidence-engine)
+   Compiling oid-policy-engine v0.1.0 (/home/danny/codes/marina-os/crates/policy-engine)
+   Compiling oid-linux-skills v0.1.0 (/home/danny/codes/marina-os/crates/linux-skills)
+   Compiling oid-model-runner v0.1.0 (/home/danny/codes/marina-os/crates/model-runner)
+   Compiling moxcms v0.8.1
+   Compiling either v1.19.0
+   Compiling errno v0.3.14
+   Compiling parking_lot_core v0.9.12
+   Compiling signal-hook v0.3.18
+   Compiling rayon v1.12.0
+   Compiling signal-hook-registry v1.4.8
+   Compiling log v0.4.35
+   Compiling smallvec v1.16.4
+   Compiling scopeguard v1.2.0
+   Compiling rustix v0.38.44
+   Compiling lock_api v0.4.14
+   Compiling mio v1.2.4
+   Compiling oid-intent-runtime v0.1.0 (/home/danny/codes/marina-os/crates/intent-runtime)
+   Compiling oid-verification-engine v0.1.0 (/home/danny/codes/marina-os/crates/verification-engine)
+   Compiling linux-raw-sys v0.4.15
+   Compiling signal-hook-mio v0.2.5
+   Compiling parking_lot v0.12.5
+   Compiling oid-operation-coordinator v0.1.0 (/home/danny/codes/marina-os/crates/operation-coordinator)
+   Compiling oid-model-client v0.1.0 (/home/danny/codes/marina-os/crates/model-client)
+   Compiling oid-console v0.1.0 (/home/danny/codes/marina-os/console)
+   Compiling unicode-width v0.2.0
+   Compiling crossterm v0.28.1
+   Compiling base64 v0.22.1
+   Compiling oid-desktop-shell v0.1.0 (/home/danny/codes/marina-os/crates/desktop-shell)
+   Compiling oid-docs v0.1.0 (/home/danny/codes/marina-os/crates/docs)
+   Compiling sysinfo v0.33.1
+   Compiling image v0.25.10
+   Compiling oid-llama-cpp-adapter v0.1.0 (/home/danny/codes/marina-os/runtime/adapters/llama-cpp)
+   Compiling oid-runtime v0.1.0 (/home/danny/codes/marina-os/runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 39.28s
+     Running unittests src/lib.rs (target/debug/deps/oid_common-507c8bdcb6e48683)
+
+running 2 tests
+test operation::tests::mutating_plan_requires_approval ... ok
+test operation::tests::plan_serialization_contains_intent_and_rollback_steps ... ok
+
+test result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests/integration.rs (target/debug/deps/integration-00633812046ecf44)
+
+running 1 test
+test crate_boundary_is_reachable ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running unittests src/main.rs (target/debug/deps/oid_console-bf1bcc38668d72b4)
+/home/danny/codes/marina-os/target/debug/deps/oid_console-bf1bcc38668d72b4: error while loading shared libraries: libllama.so.0: cannot open shared object file: No such file or directory
+error: test failed, to rerun pass `-p oid-console --bin oid-console`
+
+Caused by:
+  process didn't exit successfully: `/home/danny/codes/marina-os/target/debug/deps/oid_console-bf1bcc38668d72b4` (exit status: 127)
+note: test exited abnormally; to see the full output pass --no-capture to the harness.

@@ -29,3 +29,9 @@ The first demonstrable system has a narrow, coherent scope and a clear separatio
 
 Future clients may include a desktop, REST API consumers, background services, local applications, and OIP enterprise integrations. The console may eventually blend shell commands, AI-assisted operations, development workflows, administration, and model management while preserving explicit policy and audit boundaries.
 
+
+## Linux foundation reconciliation — 2026-11-09
+
+The runner-first initial proof is historical. Current product sequencing is superseded by the user-directed MarinaOS M0 Linux foundation; ADR-0036/0037 document the proposed formal reconciliation. Accepted technical boundaries remain intact.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

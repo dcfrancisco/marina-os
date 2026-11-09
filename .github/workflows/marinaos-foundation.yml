@@ -1,0 +1,38 @@
+name: MarinaOS foundation contracts
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'image/**'
+      - 'scripts/*image*'
+      - 'scripts/lib/image-rootfs.sh'
+      - 'scripts/*marinaos*'
+      - 'scripts/package-*-deb.sh'
+      - 'scripts/test-linux-package-ownership.py'
+      - '.github/workflows/marinaos-foundation.yml'
+  pull_request:
+    paths:
+      - 'image/**'
+      - 'scripts/**'
+      - '.github/workflows/marinaos-foundation.yml'
+permissions:
+  contents: read
+jobs:
+  contracts:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4.2.2
+      - name: Install nonprivileged fixture tooling
+        run: sudo apt-get update && sudo apt-get install -y rsync parted gdisk fdisk
+      - name: Rootfs, GPT, builder and package regression tests
+        run: |
+          set -eu
+          python3 scripts/test-image-rootfs.py
+          python3 scripts/test-marinaos-image.py
+          python3 scripts/test-marinaos-builder.py
+          python3 scripts/test-linux-package-ownership.py
+          sh -n scripts/lib/image-rootfs.sh
+          sh -n scripts/build-oid-linux-image.sh
+          bash -n scripts/build-marinaos-linux-image.sh
+      # This job does not build or boot a distribution and must not be used as
+      # release qualification. QEMU evidence has a separate explicit gate.

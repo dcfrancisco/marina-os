@@ -1,6 +1,9 @@
 #!/bin/sh
 set -eu
 
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$SCRIPT_DIR/lib/image-rootfs.sh"
+
 # Linux-only image builder. It creates a BIOS-bootable Debian bookworm raw
 # disk. Run in a disposable Linux build VM as root; it does not alter a host
 # installation and does not require Docker at runtime.
@@ -31,21 +34,25 @@ if [ -n "$llama_lib_dir" ] && [ ! -d "$llama_lib_dir" ]; then
     exit 1
 fi
 
-for command in debootstrap dd losetup mount umount parted mkfs.ext4 mountpoint rsync chroot blkid sha256sum awk; do
+for command in python3 debootstrap dd losetup mount umount parted mkfs.ext4 mountpoint rsync chroot blkid sha256sum awk; do
     command -v "$command" >/dev/null 2>&1 || { echo "missing Linux image tool: $command" >&2; exit 1; }
 done
 [ "$(id -u)" -eq 0 ] || { echo "run this builder as root in a disposable Linux build environment" >&2; exit 1; }
 
 work=$(mktemp -d); root="$work/root"; image_root="$work/image-root"; loop=
 cleanup() {
-    set +e
-    for mountpoint in "$image_root/dev/pts" "$image_root/dev" "$image_root/proc" "$image_root/sys" "$image_root"; do
-        mountpoint -q "$mountpoint" && umount -l "$mountpoint"
+    # Never delete a workspace with a still-mounted filesystem beneath it.
+    for mounted in "$image_root/dev/pts" "$image_root/dev" "$image_root/proc" "$image_root/sys" "$image_root"; do
+        if mountpoint -q "$mounted"; then
+            umount "$mounted" || { echo "retained mounted workspace: $work" >&2; return 1; }
+        fi
     done
-    [ -n "$loop" ] && losetup -d "$loop"
+    if [ -n "$loop" ]; then losetup -d "$loop" || return 1; fi
     rm -rf "$work"
 }
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 mkdir -p "$root" "$image_root"
 debootstrap --variant=minbase bookworm "$root" https://deb.debian.org/debian
 chroot "$root" apt-get update
@@ -79,23 +86,32 @@ chroot "$root" systemctl enable talvikd.service oid-readiness.service oid-consol
 if [ -n "$model" ]; then
     actual=$(sha256sum "$model" | awk '{print $1}')
     [ "$actual" = "$model_sha" ] || { echo "model checksum mismatch" >&2; exit 1; }
-    install -o marina -g marina -m 0640 "$model" "$root/var/lib/marina/models/$model_id.gguf"
+    install -m 0640 "$model" "$root/var/lib/marina/models/$model_id.gguf"
+    chroot "$root" chown marina:marina "/var/lib/marina/models/$model_id.gguf"
 fi
 
 mkdir -p "$(dirname "$output")"
+# Refuse existing files, symlinks and devices; never truncate a caller target.
+reserve_image_file "$output" || { echo "output must be a new image file" >&2; exit 1; }
 truncate -s 4G "$output"
 parted -s "$output" mklabel msdos mkpart primary ext4 1MiB 100% set 1 boot on
 loop=$(losetup --find --show --partscan "$output")
 mkfs.ext4 -F "${loop}p1" >/dev/null
 mount "${loop}p1" "$image_root"
 root_uuid=$(blkid -s UUID -o value "${loop}p1")
-printf 'UUID=%s / ext4 defaults 0 1\n' "$root_uuid" >"$image_root/etc/fstab"
-rsync -aHAX "$root/" "$image_root/"
+assemble_image_rootfs "$root" "$image_root" "$root_uuid"
 mount --bind /dev "$image_root/dev"; mount --bind /dev/pts "$image_root/dev/pts"
 mount -t proc proc "$image_root/proc"; mount -t sysfs sysfs "$image_root/sys"
 chroot "$image_root" grub-install --target=i386-pc --recheck "$loop"
 chroot "$image_root" grub-mkconfig -o /boot/grub/grub.cfg
 sync
+# Flush filesystem metadata before hashing the final artifact. A failed unmount
+# must prevent publication of a success checksum.
+for mounted in "$image_root/dev/pts" "$image_root/dev" "$image_root/proc" "$image_root/sys" "$image_root"; do
+    umount "$mounted"
+done
+losetup -d "$loop"
+loop=
 sha256sum "$output" >"$output.sha256"
 manifest="$output.manifest"
 {

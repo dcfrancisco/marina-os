@@ -20,3 +20,9 @@ every later executable rename.
 ## Migration, acceptance, open questions
 Follow `docs/MARINAOS-MIGRATION-PLAN.md`; accept when inventory coverage and
 backward-compatibility tests exist. Open: final public repository identity.
+
+## Linux foundation reconciliation — 2026-11-09
+
+M0 Linux foundation supersedes the earlier diagnostic-intent-first migration sequence. Preserve completed code and historical Debian assets. Use existing operation libraries; do not create a second service manager, package manager, model registry or configuration framework. WP-0088/0089 own the foundation. OIP and Delivery products are outside project scope.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

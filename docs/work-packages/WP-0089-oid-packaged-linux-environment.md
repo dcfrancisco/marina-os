@@ -1,5 +1,10 @@
 # WP-0089: OID/Marina Packaged Linux Environment
 
+> M0 reconciliation (2026-11-09): this existing WP retains ownership. Historical
+> AI-composed acceptance below is superseded for the Linux foundation by the
+> [M0 readiness and next-task report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+> No completed work is removed; Ubuntu migration and independent boot remain unqualified.
+
 ## Purpose
 
 Deliver the first versioned Debian/Ubuntu system-profile artifact before the
@@ -65,3 +70,9 @@ counted as systemd qualification. No real host installation has been performed.
 Implements ADR-0014 and supports ADR-0023. Depends on WP-0065, WP-0069,
 WP-0077, and WP-0078. WP-0088 remains deferred until this packaged
 environment is operationally qualified.
+
+## Corrective implementation — 2026-11-09
+
+Continued the next unblocked package-ownership dependency: oid-marina and talvik now declare mutual Conflicts. Rootless relocated dpkg tests with sanitized fixture packages reject both co-installation orders and preserve the previously installed service file. No host service or maintainer script executes in the fixture. Native payload, upgrade, migration, service and boot qualification remain separate; this does not close WP-0089.
+
+Exact commands and results: [implementation report](../reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md).

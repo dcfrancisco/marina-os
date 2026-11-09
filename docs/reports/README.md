@@ -1,5 +1,11 @@
 # Talvik reports
 
+Qualification status and reviewed disposable-VM commands: [MarinaOS distribution qualification](MARINAOS-DISTRIBUTION-QUALIFICATION-2026-11-09.md).
+
+Latest M0 implementation: [image assembly, UEFI/GPT and package ownership evidence](MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md). Actual QEMU boot remains untested.
+
+Current MarinaOS priority and approval boundaries: [Linux foundation reconciliation](MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md). ADR-0053–0062 and WP-0112–0124 are absent from the reviewed source; no replacement IDs have been allocated. ADR-0048/0049 are withdrawn from project scope.
+
 The [ADR-0020 implementation traceability report](ADR-0020-IMPLEMENTATION-TRACEABILITY-2026-11-02.md)
 records the Phase 0 training/lifecycle gap audit and first WP-0082/WP-0083
 hardware-independent implementation slice. It is not evidence of real training.

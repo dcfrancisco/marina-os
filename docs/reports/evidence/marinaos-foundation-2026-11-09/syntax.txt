@@ -1,0 +1,37 @@
+sh -n scripts/build-oid-linux-image.sh: exit 0 
+bash -n scripts/install-model-runner.sh: exit 0 
+sh -n scripts/install-oid-image-model.sh: exit 0 
+bash -n scripts/install-oid-user.sh: exit 0 
+bash -n scripts/install-talvik-macos.sh: exit 0 
+bash -n scripts/link-model-runner.sh: exit 0 
+bash -n scripts/package-oid-deb.sh: exit 0 
+bash -n scripts/package-talvik-deb.sh: exit 0 
+bash -n scripts/package-talvik-rpm.sh: exit 0 
+bash -n scripts/package-talvik-unix.sh: exit 0 
+bash -n scripts/qualify-marina-http.sh: exit 0 
+bash -n scripts/qualify-marina-linux.sh: exit 0 
+bash -n scripts/qualify-oid-deb.sh: exit 0 
+sh -n scripts/qualify-oid-image.sh: exit 0 
+bash -n scripts/qualify-talvik-gpu.sh: exit 0 
+bash -n scripts/qualify-talvik-openai-edge.sh: exit 0 
+bash -n scripts/setup-chat-template.sh: exit 0 
+bash -n scripts/setup-llama-linux.sh: exit 0 
+bash -n scripts/setup-llama-macos.sh: exit 0 
+bash -n scripts/smoke-marina.sh: exit 0 
+bash -n scripts/smoke-release-install.sh: exit 0 
+bash -n scripts/validate-linux.sh: exit 0 
+sh -n packaging/oid/oid-readiness: exit 0 
+ast.parse scripts/accept-marina-lifecycle.py: PASS
+ast.parse scripts/marina-openai-proxy.py: PASS
+ast.parse scripts/qualify-embedding-clients.py: PASS
+ast.parse scripts/qualify-ollama-client.py: PASS
+ast.parse scripts/qualify-openai-client.py: PASS
+ast.parse scripts/test-oid-console-terminal.py: PASS
+ast.parse scripts/test-talvik-action-selection.py: PASS
+ast.parse scripts/test-talvik-api-recovery.py: PASS
+ast.parse scripts/test-talvik-installers.py: PASS
+ast.parse scripts/test-talvik-model-profiles.py: PASS
+ast.parse scripts/test-talvik-native-api.py: PASS
+ast.parse scripts/test-talvik-prompt-cache.py: PASS
+ast.parse scripts/test-talvik-resource-profile.py: PASS
+ast.parse scripts/test-talvik-terminal.py: PASS

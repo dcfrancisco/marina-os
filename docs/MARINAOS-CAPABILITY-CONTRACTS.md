@@ -1,5 +1,11 @@
 # MarinaOS capability and contract catalog
 
+> M0 scope (2026-11-09): this is a catalog of existing and proposed capability
+> boundaries, not an implementation ledger. The diagnostic-intent sequence below
+> is deferred behind the independently installable Linux foundation. Preserve
+> existing policy and typed operation contracts. See the
+> [reconciliation](reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+
 Model output is an untrusted proposal. A capability is a typed boundary with
 an authenticated requester, explicit scope, policy decision, operation ID,
 verification, and evidence receipt.

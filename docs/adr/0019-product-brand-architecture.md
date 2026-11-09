@@ -79,3 +79,9 @@ pronounceability, product fit, command usability, and lower observed
 same-category collision risk. This is product screening, not legal clearance.
 Trademark, package, repository, and domain checks remain explicitly
 unverified under WP-0075 and the runtime backlog.
+
+## Linux foundation reconciliation — 2026-11-09
+
+The OID public product identity is historical. MarinaOS is the current user-directed OS identity; ADR-0036/0037 document the proposed formal supersession. Existing names, interfaces and paths remain compatibility obligations.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

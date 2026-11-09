@@ -1,0 +1,12 @@
+Command: command -v debootstrap qemu-system-x86_64 sgdisk parted rsync
+Result: debootstrap and qemu-system-x86_64 absent; sgdisk, parted and rsync available.
+
+Command: ls -l /usr/share/OVMF/OVMF_CODE_4M.fd /usr/share/OVMF/OVMF_VARS_4M.fd
+Result: matching OVMF firmware files absent.
+
+Command: sudo -n true
+Exit: 1
+Output: sudo reports the no-new-privileges flag prevents elevation in this container.
+No install or privileged image build was attempted. An earlier tool-install request
+failed because authentication was interactive; the current session's stricter
+no-new-privileges restriction is the active blocker.

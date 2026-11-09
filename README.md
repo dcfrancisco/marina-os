@@ -1,4 +1,11 @@
-# Open Intelligence Desktop (OID)
+# MarinaOS
+
+> Current direction (2026-11-09): MarinaOS is the Linux operating-system
+> product. M0 prioritizes an independently installable and bootable Ubuntu 24.04
+> LTS amd64 foundation. Talvik is optional and cannot gate Linux startup.
+> OIP and Delivery One/Delivery OS are outside this project. Historical sections
+> below retain compatibility and implementation history; conflicting priority
+> statements are superseded by the [Linux foundation reconciliation](docs/reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
 
 Current Talvik implementation, test evidence and RC blockers are recorded in the [reports index](docs/reports/README.md). The [2026-11-01 status](docs/reports/TALVIK-STATUS-2026-11-01.md) distinguishes committed source from installed binaries and live IDE acceptance.
 

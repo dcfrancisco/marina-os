@@ -140,3 +140,9 @@ runtime, and packaging/image foundations are implemented to their separately
 documented scope. The MarinaOS umbrella name and the `marina-sysd` /
 `marina-usrd` split are proposals, not implemented services or accepted
 product decisions.
+
+## Linux foundation reconciliation — 2026-11-09
+
+Current product identity and sequencing are reconciled in ADR-0036/0037 and ADR-0050. Advanced orchestration and UI are deferred; no additional control plane or executor is implied. External OIP and Delivery products are excluded.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

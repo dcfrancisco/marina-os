@@ -22,3 +22,9 @@ disclosure policy.
 Start with local Talvik and a typed proposal adapter. Accept when local mode
 works with OIP disconnected and provider identity is observable. Open: memory
 store implementation and model-selection policy.
+
+## Linux foundation reconciliation — 2026-11-09
+
+Deferred beyond M0. External provider references below are historical and excluded from the current project; ADR-0048 is withdrawn. No intelligence service is a Linux boot dependency.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

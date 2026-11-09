@@ -1,5 +1,7 @@
 # Work Packages
 
+Current MarinaOS priority and approval boundaries: [Linux foundation reconciliation](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md). ADR-0053–0062 and WP-0112–0124 are absent from the reviewed source; no replacement IDs have been allocated. ADR-0048/0049 are withdrawn from project scope.
+
 Current Talvik qualification and next gates: [reports index](../reports/README.md) and [2026-11-01 status](../reports/TALVIK-STATUS-2026-11-01.md).
 
 Work Packages (WPs) turn architectural decisions into reviewable bodies of design work. They are documentation and planning units; a WP does not authorize implementation outside its stated scope.

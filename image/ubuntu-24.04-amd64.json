@@ -1,0 +1,18 @@
+{
+  "schema": "marinaos.image/v1",
+  "distribution": "ubuntu",
+  "release": "noble",
+  "version": "24.04",
+  "architecture": "amd64",
+  "firmware": "uefi",
+  "partition_table": "gpt",
+  "secure_boot": false,
+  "image_size_mib": 6144,
+  "esp_end_mib": 513,
+  "mirror": "https://archive.ubuntu.com/ubuntu",
+  "packages": [
+    "systemd-sysv", "linux-generic", "initramfs-tools", "grub-efi-amd64-bin",
+    "grub2-common", "dosfstools", "ca-certificates", "util-linux", "coreutils",
+    "procps", "iproute2", "sudo", "locales"
+  ]
+}

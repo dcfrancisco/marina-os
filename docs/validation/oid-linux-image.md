@@ -1,5 +1,9 @@
 # OID Linux image build and qualification
 
+> Historical Debian BIOS prototype. Its actual partition table is MBR. Current
+> Ubuntu UEFI/GPT work and qualification limits are documented in
+> [MarinaOS foundation image validation](marinaos-linux-image.md).
+
 WP-0088 uses a minimal Debian bookworm `amd64` base with systemd and a BIOS
 raw disk for the first proof. This is an image-builder choice, not a new
 Marina packaging profile: Marina follows ADR-0014 and WP-0069.

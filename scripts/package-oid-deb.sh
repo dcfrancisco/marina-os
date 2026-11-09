@@ -68,6 +68,7 @@ install -m 0755 "$ROOT/scripts/install-oid-image-model.sh" "$PKG/usr/libexec/ins
 cat >"$PKG/DEBIAN/control" <<EOF
 Package: oid-marina
 Version: $VERSION
+Conflicts: talvik
 Section: misc
 Priority: optional
 Architecture: amd64

@@ -1,5 +1,7 @@
 # Architecture Decision Records
 
+Current MarinaOS priority and approval boundaries: [Linux foundation reconciliation](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md). ADR-0053–0062 and WP-0112–0124 are absent from the reviewed source; no replacement IDs have been allocated. ADR-0048/0049 are withdrawn from project scope.
+
 ADRs capture decisions that materially affect the project’s architecture, security model, public extension points, or operational behavior.
 
 - [ADR-0001 — Project Vision](0001-project-vision.md)

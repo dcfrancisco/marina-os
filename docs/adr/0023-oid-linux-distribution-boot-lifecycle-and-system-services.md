@@ -100,3 +100,9 @@ The current implementation assets are `scripts/build-oid-linux-image.sh`,
 composition and an evidence-oriented in-VM gate, but they do not constitute
 boot qualification. WP-0088 remains In Progress until a real Linux VM or
 machine executes the mandatory acceptance tests.
+
+## Linux foundation reconciliation — 2026-11-09
+
+Amend the proposed boot proof: Ubuntu 24.04 LTS amd64 is the foundation target; Debian bookworm BIOS remains historical. Linux boot, ordinary login and recovery must work without Talvik or any model. The earlier mandatory model/console demonstration is an optional later integration gate. WP-0088/0089 own migration; no boot qualification is claimed.
+
+Evidence and approval boundaries: [reconciliation report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).

@@ -1,5 +1,12 @@
 # Project Operating Brief
 
+> Current direction (2026-11-09): MarinaOS is the Linux operating-system
+> product. M0 prioritizes an independently installable and bootable Ubuntu 24.04
+> LTS amd64 foundation. Talvik is optional and cannot gate Linux startup.
+> OIP and Delivery One/Delivery OS are outside this project. Historical sections
+> below retain compatibility and implementation history; conflicting priority
+> statements are superseded by the [Linux foundation reconciliation](reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+
 This is the compact context packet for a new human or AI assistant. It is
 intended to be read once per task, not repeated in every prompt.
 

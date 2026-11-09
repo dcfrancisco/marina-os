@@ -1,5 +1,12 @@
 # Talvik / Intelligent Runtime Roadmap
 
+> Current direction (2026-11-09): MarinaOS is the Linux operating-system
+> product. M0 prioritizes an independently installable and bootable Ubuntu 24.04
+> LTS amd64 foundation. Talvik is optional and cannot gate Linux startup.
+> OIP and Delivery One/Delivery OS are outside this project. Historical sections
+> below retain compatibility and implementation history; conflicting priority
+> statements are superseded by the [Linux foundation reconciliation](../docs/reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+
 This roadmap sequences the control plane from the current local runner to an
 Reference local runner-like service and OID-owned multi-backend router. Milestones are
 capability boundaries, not promises of implementation in the current

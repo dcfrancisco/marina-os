@@ -1,5 +1,10 @@
 # WP-0088: OID Bootable Linux Image and Boot-to-Operation Proof
 
+> M0 reconciliation (2026-11-09): this existing WP retains ownership. Historical
+> AI-composed acceptance below is superseded for the Linux foundation by the
+> [M0 readiness and next-task report](../reports/MARINAOS-LINUX-FOUNDATION-RECONCILIATION-2026-11-09.md).
+> No completed work is removed; Ubuntu migration and independent boot remain unqualified.
+
 ## Purpose
 
 Implement the first reproducible Debian/Ubuntu-family bootable image with OID
@@ -94,3 +99,9 @@ machine-readable image/input hash manifest.
 Unverified: real image build, VM boot, native systemd startup, GGUF inference,
 governed operation, offline boot, reboot evidence persistence, and restart
 recovery. These remain mandatory before this WP can close.
+
+## Corrective implementation — 2026-11-09
+
+Implemented root-copy-before-fstab assembly shared by both builders, new-file-only image allocation, final hashing after unmount, and Ubuntu 24.04 amd64 UEFI/GPT foundation composition independent of Talvik. Added real nonprivileged rsync/GPT tests, stubbed builder failure tests, a QEMU boot harness and a foundation CI workflow. Debian BIOS/MBR remains historical. Actual Ubuntu construction and QEMU boot remain NOT TESTED: local tools are absent and sudo requires interactive authentication. This work package remains In Progress.
+
+Exact commands and results: [implementation report](../reports/MARINAOS-IMAGE-IMPLEMENTATION-2026-11-09.md).
