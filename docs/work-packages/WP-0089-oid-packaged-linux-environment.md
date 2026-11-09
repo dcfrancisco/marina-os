@@ -207,3 +207,7 @@ validates their names, architecture and matching versions, records input hashes,
 and enables the packaged service. Package inclusion in source or a mocked build
 is not evidence of installed-system or VM-boot qualification; use the observed
 WP-0088 build and QEMU evidence for those gates.
+
+The disposable builder log reports installing the 0.1.0 core and CLI packages;
+systemd boot and service recovery remain unqualified pending the [first-boot
+record](../reports/MARINAOS-FIRST-BOOT-2026-11-10.md).

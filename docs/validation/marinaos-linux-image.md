@@ -1,8 +1,11 @@
 # MarinaOS Ubuntu foundation image
 
 WP-0088 implementation preview, 2026-11-09. Target: Ubuntu 24.04 LTS (`noble`),
-amd64, UEFI/GPT, Secure Boot disabled. This builder is implemented but **no actual
-image build or QEMU boot has passed in this workspace**. It is not an installer
+amd64, UEFI/GPT, Secure Boot disabled. A disposable build VM reported creating an
+image, and the transferred image matched the guest's recorded SHA-256. Actual
+boot-to-login was observed; the complete lifecycle gate remains in progress, as
+recorded in the [recovery record](../reports/MARINAOS-FIRST-BOOT-2026-11-10.md).
+It is not an installer
 or a qualified distribution. The Debian BIOS prototype remains available through
 `build-oid-linux-image.sh` and its corrected MBR manifest.
 

@@ -121,3 +121,10 @@ systemd readiness, service and CLI, recovery after killing the daemon, shutdown,
 and persistence. It redacts the test password in serial evidence. The ordinary
 boot-to-login mode remains available. These claims are checks the harness performs;
 a run's results must be read from that run's report and serial log.
+
+The disposable build VM reported creating an image, and the recovered image
+matched the guest's recorded SHA-256. UEFI kernel startup, login prompt and an
+administrator shell were observed. After fixing a harness shell-readiness race,
+the next run exposed a missing system bus. The manifest adds D-Bus, and image
+rebuild and lifecycle qualification remain in progress. See the
+[first-boot record](../reports/MARINAOS-FIRST-BOOT-2026-11-10.md).

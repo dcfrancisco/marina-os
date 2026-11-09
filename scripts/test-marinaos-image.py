@@ -155,6 +155,26 @@ class BootHarness(unittest.TestCase):
         finally:
             console.close()
 
+    def test_lifecycle_waits_for_shell_after_login(self):
+        guest = '''import select, sys, time
+sys.stdin.readline()
+print("Password:", end="", flush=True)
+sys.stdin.readline()
+if select.select([sys.stdin], [], [], 0.3)[0]:
+    print("command arrived before shell", flush=True)
+    sys.exit(1)
+print("marina-admin@marinaos:~$ ", end="", flush=True)
+sys.stdin.readline()
+print("__M0_LOGIN1__", flush=True)
+'''
+        output = bytearray()
+        console = lifecycle.Console(['python3', '-u', '-c', guest], output, b'fixture')
+        try:
+            console.login(1)
+            self.assertNotIn(b'command arrived before shell', output)
+        finally:
+            console.close()
+
     def test_lifecycle_failure_is_recorded_and_password_redacted(self):
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp)

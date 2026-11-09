@@ -13,6 +13,6 @@
   "packages": [
     "systemd-sysv", "linux-generic", "initramfs-tools", "grub-efi-amd64-bin",
     "grub2-common", "dosfstools", "ca-certificates", "util-linux", "coreutils",
-    "procps", "iproute2", "sudo", "locales"
+    "procps", "iproute2", "sudo", "locales", "dbus"
   ]
 }

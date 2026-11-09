@@ -61,6 +61,16 @@ class Console:
         self.send(self.secret)
         self.command('sudo -n true && true', 'SUDO', 120)
 
+    def login(self, boot_number):
+        start = len(self.output)
+        self.send(b'marina-admin')
+        self.expect(b'Password:', 120, start)
+        start = len(self.output)
+        self.send(self.secret)
+        # Login may discard queued input while PAM and the shell initialize.
+        self.expect(b'marina-admin@marinaos:~$ ', 180, start)
+        self.command('true', 'LOGIN' + str(boot_number), 180)
+
     def close(self):
         if self.process.poll() is None:
             self.process.terminate()
@@ -136,11 +146,7 @@ def qualify(image, code, variables, report, password_file, timeout=300):
                     console.expect(b'marinaos login:', timeout, offset)
                     steps[current_step] = 'passed'
                     current_step = 'login'
-                    start = len(output)
-                    console.send(b'marina-admin')
-                    console.expect(b'Password:', 120, start)
-                    console.send(secret)
-                    console.command('true', 'LOGIN' + str(boot_number), 180)
+                    console.login(boot_number)
                     steps['login'] = 'passed'
                     if boot_number == 1:
                         current_step = 'systemd'
