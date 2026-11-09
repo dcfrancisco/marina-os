@@ -91,3 +91,23 @@ a timeout or an early QEMU exit fail. Fixture tests of the harness are not QEMU
 qualification. The report explicitly leaves authenticated login, installation and
 reboot persistence untested. Complete those, package upgrade/recovery, firmware
 matrix and signed reproducible release inputs before claiming a distribution.
+
+## Ubuntu M0 package qualification
+
+The [WP-0089 qualification record](../work-packages/WP-0089-oid-packaged-linux-environment.md)
+separates Ubuntu container evidence from the still-unmet VM and boot gates.
+The build harness `scripts/qualify-marinaos-build-container.sh` expects a clean
+Ubuntu 24.04 amd64 container with read-only `/source`, `/toolchain`, and
+`/cargo-cache/registry`, plus an empty writable `/output`. It installs build
+prerequisites in the disposable container, builds release binaries and DEBs,
+and emits ABI, package and hash evidence. The 0.1.1 artifact is a version-only
+fixture for the upgrade test, not a new release. No host compiler or package
+installation is required on the target.
+
+`scripts/marinaos-qualification.Dockerfile` prepares only the disposable test
+harness. Mount generated packages read-only at `/packages`, mount
+`scripts/test-marinaos-ubuntu-container.sh` read-only, and run it with Docker
+`--network none` and `MARINAOS_SKIP_APT=1`. The test manually starts the daemon;
+it is not systemd boot qualification. For actual boot, service recovery and
+running-service upgrade, use a disposable VM as described above. Never point the
+builder or qualification process at a physical block device.

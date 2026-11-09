@@ -1,0 +1,16 @@
+Read-only host observations, 2026-11-09
+
+systemctl --failed --no-legend --no-pager (outside sandbox):
+oio-server.service loaded failed failed Open Intelligence Platform server
+
+systemctl show oio-server.service --property=LoadState --property=ActiveState --property=SubState --property=Result --property=ExecMainStatus --property=ActiveEnterTimestamp:
+LoadState=loaded
+ActiveState=failed
+SubState=failed
+ActiveEnterTimestamp=
+Result=exit-code
+ExecMainStatus=1
+
+The first sandboxed systemctl query failed: Operation not permitted. No services were changed.
+command -v: debootstrap, qemu-system-x86_64 and qemu-img unavailable.
+/usr/share/OVMF: unavailable.

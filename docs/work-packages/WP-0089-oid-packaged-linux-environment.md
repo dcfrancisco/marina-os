@@ -153,3 +153,49 @@ both reported `degraded`; an inaccessible bus reports unavailable. Rust fmt,
 strict workspace Clippy and `cargo test --workspace --offline` passed; the latter
 required outside-sandbox Unix sockets and `LD_LIBRARY_PATH=/home/danny/.marina/lib`.
 No host packages, services or physical disks were modified.
+
+## M0 Ubuntu 24.04 qualification continuation
+
+Source: `dea9ac78d950e7a3e2ddf87d721b6303594e6361`, exported using
+`git archive`. The [qualification evidence](../reports/evidence/marinaos-m0-ubuntu-2026-11-09/)
+contains build environment, ELF/package inspection, hashes and offline container
+output. The initial Ubuntu base digest was
+`sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852`.
+
+- **PASS** — Optimized `cargo build --release` and native core/CLI DEB builds
+  in a disposable Ubuntu 24.04.5 amd64 container. Rust 1.96.0 and cached Cargo
+  dependencies were mounted read-only from the host; compilation and linking
+  used the Ubuntu container. The source archive and Rust lockfile were fixed;
+  apt inputs and host toolchain provenance were not independently pinned.
+- **PASS** — `readelf` reports x86-64 ELF PIE, the standard dynamic loader,
+  libc and libgcc only; maximum GLIBC symbols are 2.39 for the daemon and 2.34
+  for the client. DEB metadata declares amd64 and matching library dependencies;
+  no Talvik, model, GPU or compiler dependency is bundled.
+- **PASS** — In a separate Ubuntu 24.04 container with `--network none` and no
+  compiler, installed both packages; verified unit with `systemd-analyze verify`,
+  sysusers, socket permissions, authorized, unauthorized and revoked readers,
+  service-account manual startup, manual restart, removal and test-data retention.
+- **PASS** — Upgraded both packages while the old manually started daemon was
+  running; old and new daemon SHA-256 digests differ. The old daemon continued
+  serving, and a manual restart served the new version. The 0.1.1 fixture differs
+  from 0.1.0 only in workspace version; this is not a behavioral migration test.
+- **PASS** — Workspace formatting, strict Clippy, workspace tests with existing
+  native libraries, and the legacy package ownership test. Socket tests required
+  running outside the sandbox. `dpkg-shlibdeps` reported diversions and staging
+  warnings; package installation and execution succeeded in Ubuntu 24.04.
+- **FAIL** — Initial sandboxed host systemd query was denied with `Operation not
+  permitted`; the read-only query outside the sandbox succeeded. The host manager
+  reported `degraded`, with `oio-server.service` failed (`Result=exit-code`,
+  `ExecMainStatus=1`). No service was changed or restarted.
+- **BLOCKED** — `debootstrap`, `qemu-system-x86_64`, `qemu-img`, and OVMF are
+  unavailable. Exact installation prerequisites and disposable VM instructions
+  are in [image validation](../validation/marinaos-linux-image.md).
+- **NOT TESTED** — Real systemd-managed service startup/restart/failure recovery,
+  boot, systemd-driven upgrade and offline reboot in an Ubuntu VM; package purge;
+  upgrade with a behaviorally different release; signed artifacts and pinned,
+  repeatable release inputs. The container intentionally did not run systemd as
+  PID 1, and no Docker result constitutes a VM boot.
+
+The DEBs are local temporary test artifacts, not signed release deliverables.
+The next release blocker is a disposable Ubuntu 24.04 systemd VM to qualify
+service lifecycle and upgrade while running, followed by image boot and recovery.

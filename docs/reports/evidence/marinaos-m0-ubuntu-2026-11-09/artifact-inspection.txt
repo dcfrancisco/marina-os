@@ -1,0 +1,92 @@
+Binary: /output/marinaosd-0.1.0
+  Class:                             ELF64
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [ld-linux-x86-64.so.2]
+GLIBC_2.39
+Binary: /output/marinaosd-0.1.1
+  Class:                             ELF64
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [ld-linux-x86-64.so.2]
+GLIBC_2.39
+Binary: /output/marinaosctl-0.1.0
+  Class:                             ELF64
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [ld-linux-x86-64.so.2]
+GLIBC_2.34
+Binary: /output/marinaosctl-0.1.1
+  Class:                             ELF64
+  Type:                              DYN (Position-Independent Executable file)
+  Machine:                           Advanced Micro Devices X86-64
+      [Requesting program interpreter: /lib64/ld-linux-x86-64.so.2]
+ 0x0000000000000001 (NEEDED)             Shared library: [libgcc_s.so.1]
+ 0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
+ 0x0000000000000001 (NEEDED)             Shared library: [ld-linux-x86-64.so.2]
+GLIBC_2.34
+Package: /output/marinaos-cli_0.1.0_amd64.deb
+Package: marinaos-cli
+Version: 0.1.0
+Architecture: amd64
+Depends: libc6 (>= 2.34), libgcc-s1 (>= 4.2), marinaos-core (>= 0.1.0)
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/bin/
+-rwxr-xr-x root/root    649864 2026-11-09 14:11 ./usr/bin/marinaosctl
+Package: /output/marinaos-cli_0.1.1_amd64.deb
+Package: marinaos-cli
+Version: 0.1.1
+Architecture: amd64
+Depends: libc6 (>= 2.34), libgcc-s1 (>= 4.2), marinaos-core (>= 0.1.1)
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/bin/
+-rwxr-xr-x root/root    649864 2026-11-09 14:11 ./usr/bin/marinaosctl
+Package: /output/marinaos-core_0.1.0_amd64.deb
+Package: marinaos-core
+Version: 0.1.0
+Architecture: amd64
+Depends: libc6 (>= 2.39), libgcc-s1 (>= 4.2), systemd, init-system-helpers (>= 1.52)
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/bin/
+-rwxr-xr-x root/root    737632 2026-11-09 14:11 ./usr/bin/marinaosd
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/systemd/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/systemd/system/
+-rw-r--r-- root/root       587 2026-11-09 14:11 ./usr/lib/systemd/system/marinaosd.service
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/sysusers.d/
+-rw-r--r-- root/root        96 2026-11-09 14:11 ./usr/lib/sysusers.d/marinaos.conf
+Package: /output/marinaos-core_0.1.1_amd64.deb
+Package: marinaos-core
+Version: 0.1.1
+Architecture: amd64
+Depends: libc6 (>= 2.39), libgcc-s1 (>= 4.2), systemd, init-system-helpers (>= 1.52)
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/bin/
+-rwxr-xr-x root/root    737632 2026-11-09 14:11 ./usr/bin/marinaosd
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/systemd/
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/systemd/system/
+-rw-r--r-- root/root       587 2026-11-09 14:11 ./usr/lib/systemd/system/marinaosd.service
+drwxr-xr-x root/root         0 2026-11-09 14:11 ./usr/lib/sysusers.d/
+-rw-r--r-- root/root        96 2026-11-09 14:11 ./usr/lib/sysusers.d/marinaos.conf
+9ae94c66b8a86e645d8811e4346e86b2bf37a0d4fc1f2a8f3340c12c056373eb  /output/marinaos-cli_0.1.0_amd64.deb
+3b7c478f7ec81d7882aff3556562391a691c80aa3320ef16f1fb3402e762fbb5  /output/marinaos-cli_0.1.1_amd64.deb
+3791cacda4eb8b1d70fa19593cdad111d65df7f57e0c3e745bcd7d0bf537e2b7  /output/marinaos-core_0.1.0_amd64.deb
+a67d9df4cf0245495dce1995a46b57a61529373099a25a7dcabe9a320e3655ce  /output/marinaos-core_0.1.1_amd64.deb
+d99a8bd0d22fd7a6f72c6a4355a5c10dca3cfa73655bfa2bde144a894720e513  /output/marinaosd-0.1.0
+8ca0a9efb0717b6d2caa412364a04d40a0ec17c57b1c71c9bfd1938e6d74b322  /output/marinaosd-0.1.1
+b027c52474a9a175d7223a8502233c51a5fca7a8be080ce93d80646a0b157436  /output/marinaosctl-0.1.0
+3d49aa7fa9f3cc6cf0a839a71b429704080f0d10846f386d16a2847c8f9572b2  /output/marinaosctl-0.1.1
