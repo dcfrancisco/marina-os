@@ -19,6 +19,7 @@ members = [
     "crates/operation-coordinator",
     "crates/docs",
     "crates/marinaos-cli",
+    "crates/marinaos-core",
 ]
 
 [workspace.package]

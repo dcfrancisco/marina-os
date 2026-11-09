@@ -86,3 +86,28 @@ Talvik. It is an early standalone client, not yet a daemon client. No
 `marinaosd`, authenticated IPC, dedicated service account, MarinaOS DEBs,
 installation lifecycle or image integration is implemented in this slice.
 Those and native Ubuntu 24.04 package/boot qualification remain open.
+
+## Local diagnostics IPC implementation
+
+The read-only CLI now calls `marinaosd` using the documented
+[local protocol](../ipc/marinaos-v1.md). The daemon authenticates kernel peer
+UIDs and permits only root or its own UID; ordinary-user delegation is open.
+It reports observed kernel facts and explicitly leaves systemd manager health
+unknown. The service unit and sysusers definition are packaging inputs, not an
+installed or qualified package. No daemon or CLI DEB has been produced.
+
+`cargo test -p marinaos-core -p marinaos-cli --offline` passed outside the
+sandbox, including socket framing, unauthorized UID, input limits, timeout,
+hardware observation and daemon restart. The sandbox rejected Unix socket
+creation with `Operation not permitted`. Real systemd installation, separate
+UID service startup, package install/upgrade/removal and Ubuntu 24.04 boot are
+unverified. CLI server authentication, ordinary-user delegation, readiness,
+and full service/package qualification remain open.
+
+The real CLI-to-daemon command test `python3 scripts/test-marinaos-ipc.py`
+passed outside the sandbox using a temporary directory and an unprivileged
+same-UID daemon. It verified all five CLI commands and SIGTERM cleanup. It did
+not install or start the systemd unit. Strict workspace Clippy and formatting
+passed; the workspace test suite passed outside the sandbox with
+`LD_LIBRARY_PATH=/home/danny/.marina/lib`. Without that library path, the
+existing console test executable failed to load `libllama.so.0`.

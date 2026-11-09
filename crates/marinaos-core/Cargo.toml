@@ -1,0 +1,15 @@
+[package]
+name = "marinaos-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[[bin]]
+name = "marinaosd"
+path = "src/main.rs"
+
+[target.'cfg(target_os = "linux")'.dependencies]
+serde_json = "1"
+rustix = { version = "0.38", features = ["net", "process"] }
+signal-hook = "0.3"

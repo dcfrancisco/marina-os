@@ -215,7 +215,17 @@ checksum = "5d15f86d12da44cd8d4ec3c73984537eb7f4cadcb9776a575a0a8a05ca11005c"
 name = "marinaos-cli"
 version = "0.1.0"
 dependencies = [
+ "marinaos-core",
  "serde_json",
+]
+
+[[package]]
+name = "marinaos-core"
+version = "0.1.0"
+dependencies = [
+ "rustix",
+ "serde_json",
+ "signal-hook",
 ]
 
 [[package]]
