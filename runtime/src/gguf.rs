@@ -1,5 +1,6 @@
 //! Bounded, non-loading GGUF metadata inspection for discovery.
 
+use std::collections::HashSet;
 use std::io::{self, Read};
 use std::path::Path;
 
@@ -39,7 +40,7 @@ fn value<R: Read>(reader: &mut R, kind: u32) -> io::Result<Option<String>> {
         9 => {
             let element = u32::try_from(number(reader, 4)?).unwrap_or(u32::MAX);
             let count = number(reader, 8)?;
-            if count > 1_000_000 || element == 9 {
+            if count > 1_000_000 || element == 9 || element > 12 {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidData,
                     "invalid GGUF array",
@@ -81,8 +82,15 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
         ));
     }
     let mut entries = Vec::new();
+    let mut keys = HashSet::new();
     for _ in 0..count {
         let key = string(&mut reader)?;
+        if !keys.insert(key.clone()) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "duplicate GGUF metadata key",
+            ));
+        }
         let kind = u32::try_from(number(&mut reader, 4)?).unwrap_or(u32::MAX);
         let data = value(&mut reader, kind)?;
         if (key == "general.architecture" && kind == 8)
@@ -140,6 +148,32 @@ mod tests {
         assert_eq!(facts.context, Some(4096));
         bytes.pop();
         std::fs::write(&path, bytes).unwrap();
+        assert!(inspect(&path).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn rejects_duplicate_keys_and_invalid_empty_array_types() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-gguf-invalid-{}.gguf", std::process::id()));
+        let mut bytes = b"GGUF".to_vec();
+        bytes.extend_from_slice(&3_u32.to_le_bytes());
+        bytes.extend_from_slice(&0_u64.to_le_bytes());
+        bytes.extend_from_slice(&2_u64.to_le_bytes());
+        for _ in 0..2 {
+            text(&mut bytes, "general.architecture");
+            bytes.extend_from_slice(&8_u32.to_le_bytes());
+            text(&mut bytes, "test");
+        }
+        std::fs::write(&path, &bytes).unwrap();
+        assert!(inspect(&path).is_err());
+        bytes.truncate(24);
+        bytes[16..24].copy_from_slice(&1_u64.to_le_bytes());
+        text(&mut bytes, "invalid");
+        bytes.extend_from_slice(&9_u32.to_le_bytes());
+        bytes.extend_from_slice(&99_u32.to_le_bytes());
+        bytes.extend_from_slice(&0_u64.to_le_bytes());
+        std::fs::write(&path, &bytes).unwrap();
         assert!(inspect(&path).is_err());
         std::fs::remove_file(path).unwrap();
     }
