@@ -65,14 +65,13 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Build required-native release binaries with `LLAMA_CPP_LIB_DIR`,
-`LLAMA_CPP_REQUIRED=1`, `LLAMA_CPP_MTMD_REQUIRED=1`, and
-`LLAMA_CPP_CHAT_TEMPLATE_REQUIRED=1`; run default acceptance with --bin-dir
-target/release and bounded --report. Do not install. Then qualify authenticated
-live suitability diagnostics on a disposable daemon and remaining package formats.
-Full context-growth native test exceeded 180s; use the separate bounded native
-cancellation test for lifecycle acceptance and reduce/split growth fixtures before
-another full benchmark. Preserve installed Qwen release and model artifacts.
+NEXT ACTION: Split full native context-growth fixture into a bounded, independently
+addressable growth check, reducing its prompt size while preserving capacity-growth,
+isolation and deterministic cleanup assertions. Existing full fixture timed out at
+180s; bounded cancellation passes. Then reconcile remaining WP acceptance items,
+including active-parameter derivation and unsupported cache architectures, without
+claiming actual MoE/GPU qualification. Release default/authenticated diagnostics
+and Unix/DEB artifact builds now pass; never install over known-good Qwen casually.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -375,3 +374,39 @@ Continuation after 2afb643 — architecture-aware admission and suitability:
 - Native logs confirmed attention context padding; admission now rounds token
   reservations up to 256-token units, retaining the per-token floor. Added
   small-context regression. Hardware suitability estimate remains approximate.
+
+
+Release qualification of 0f041a7:
+
+- Required-native release build PASS (two jobs and all four documented flags).
+  Existing default acceptance --bin-dir target/release --report PASS using local
+  Qwen and isolated state. Report `/tmp/talvik-moe-qwen-release-benchmark.json`.
+  Clean 0f041a7 release; 2 threads, 512 context, 35 prompt/8 generated tokens.
+  New prompt TTFT 2947 ms, generation 3.58741 tokens/s, 24 reused tokens;
+  warm TTFT 316 ms, generation 3.60119 tokens/s, 34 reused tokens. No cold-cache,
+  peak-memory or model-load-duration claim. No MoE inference.
+- Release Unix archive packaging PASS, SHA-256
+  `ee1c78e2fd10779a3a7735ce9918c18e2ad5104c386d244933d2c7527015f960`,
+  `/tmp/talvik-0f041a7-release-qualification.tar.gz`. No installation.
+- DEB packaging initially could not chmod /tmp when directly used as output
+  parent (also failed outside sandbox); rerun uses a task-owned child directory.
+  This did not change operating-system settings. Record final packaging result.
+- After padding adjustment: runtime 71 PASS/1 ignored; strict combined runtime,
+  native and console Clippy PASS. Bounded native cancellation PASS, complete
+  native context-growth benchmark remains timed out. Installed baseline untouched.
+
+- DEB artifact build and dpkg-deb --info inspection PASS at
+  `/tmp/talvik-qualification-artifacts/talvik-0f041a7.deb`, SHA-256
+  `dbb4156b9dc64bfe4fc3f9a828a48a609e9b5a2a416cb34e77efded050c4077b`.
+  Metadata: Talvik 0.1.0 amd64. No package installation or systemd changes.
+- Extended existing acceptance harness with --diagnostics-only, private random
+  fixture tokens and an authenticated disposable release daemon. PASS: no/invalid
+  token 401, inference-only scope 403 on model diagnostics, read scope 200,
+  validated storage and unknown backend compatibility, malformed artifact remains
+  unavailable/unknown, invalid model input 400, absent model 404.
+  Command: LD_LIBRARY_PATH=/home/danny/.marina/lib python3
+  scripts/test-talvik-default-model.py --bin-dir target/release --model <Qwen path>
+  --diagnostics-only. Python compilation, diff check and formatting PASS.
+- rpmbuild unavailable: RPM build SKIPPED; Windows/macOS execution SKIPPED on
+  this Linux host. Whole workspace qualification NOT RUN; Talvik targeted suites
+  above are the evidence. Actual MoE and GPU inference remain unverified.

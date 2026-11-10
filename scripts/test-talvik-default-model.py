@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import socket
+import secrets
 import subprocess
 import tempfile
 import time
@@ -19,10 +20,12 @@ import urllib.error
 import urllib.request
 
 
-def request(base, path, body=None):
+def request(base, path, body=None, token=None):
     data = None if body is None else json.dumps(body).encode()
     req = urllib.request.Request(base + path, data=data,
                                  headers={"Content-Type": "application/json"})
+    if token:
+        req.add_header("Authorization", "Bearer " + token)
     try:
         with urllib.request.urlopen(req, timeout=30) as response:
             return response.status, json.load(response)
@@ -31,7 +34,7 @@ def request(base, path, body=None):
 
 
 @contextlib.contextmanager
-def daemon(binary, root, override=None):
+def daemon(binary, root, override=None, authenticated=False):
     env = {k: v for k, v in os.environ.items()
            if not k.startswith(("TALVIK_", "MARINA_", "OID_"))}
     with socket.socket() as listener:
@@ -43,6 +46,9 @@ def daemon(binary, root, override=None):
                TALVIK_SOCKET=str(root / "talvik.sock"),
                TALVIK_HTTP_ADDR=f"127.0.0.1:{port}", TALVIK_HTTP_AUTH="false",
                TALVIK_THREADS="2", TALVIK_PLACEMENT="cpu_only", TALVIK_BACKEND="cpu")
+    if authenticated:
+        env["TALVIK_HTTP_AUTH"] = "true"
+        env["TALVIK_TOKEN_FILE"] = str(root / "tokens")
     if override is not None:
         env["TALVIK_DEFAULT_MODEL"] = override
     base = f"http://127.0.0.1:{port}"
@@ -90,6 +96,7 @@ def main():
     parser.add_argument("--model", type=Path, required=True, help="existing small local GGUF")
     parser.add_argument("--bin-dir", type=Path, default=Path("target/debug"))
     parser.add_argument("--report", type=Path, help="write bounded cold/warm benchmark evidence")
+    parser.add_argument("--diagnostics-only", action="store_true", help="qualify authenticated storage/suitability diagnostics only")
     args = parser.parse_args()
     measurements = []
     model = args.model.resolve(strict=True)
@@ -103,6 +110,29 @@ def main():
         (root / "models/aaa-large-model.gguf").write_bytes(b"GGUF invalid fixture")
         config = root / "config.yaml"
         config.write_text("default_model: small\nauto_download: false\nauto_load: true\n")
+        if args.diagnostics_only:
+            read_token, inference_token = secrets.token_hex(32), secrets.token_hex(32)
+            token_file = root / "tokens"
+            token_file.write_text(f"{read_token}\treader\tmodels:read\n{inference_token}\tinference\tinference\n")
+            token_file.chmod(0o600)
+            with daemon(binary, root, authenticated=True) as (base, _env, _log):
+                assert request(base, "/v1/models")[0] == 401
+                assert request(base, "/v1/models", token="invalid")[0] == 401
+                assert request(base, "/v1/models", token=inference_token)[0] == 403
+                status, body = request(base, "/v1/models", token=read_token)
+                assert status == 200, body
+                entries = {entry["id"]: entry for entry in body["data"]}
+                assert entries["small"]["storage_accounting"]["status"] == "validated"
+                assert entries["small"]["storage_accounting"]["tensor_payload_bytes"] > 0
+                assert entries["small"]["suitability"]["backend_compatibility"] is None
+                assert entries["aaa-large-model"]["storage_accounting"]["status"] == "unavailable"
+                assert entries["aaa-large-model"]["suitability"]["status"] == "unknown"
+                assert request(base, "/api/show", {"model": "small"}, token=inference_token)[0] == 403
+                assert request(base, "/api/show", {"model": "small"}, token=read_token)[0] == 200
+                assert request(base, "/api/show", {"model": 123}, token=read_token)[0] == 400
+                assert request(base, "/api/show", {"model": "missing"}, token=read_token)[0] == 404
+            print("PASS: authenticated storage/suitability, read scopes, malformed metadata and invalid input")
+            return
         # Reuse persisted registry over a full process restart; ordering cannot win.
         for _ in range(2):
             with daemon(binary, root) as (base, env, _log):
