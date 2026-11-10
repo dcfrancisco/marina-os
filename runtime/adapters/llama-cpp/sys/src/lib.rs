@@ -3291,10 +3291,26 @@ fn output_formats(
 }
 
 #[cfg(native_llama_cpp)]
+fn inspect_experts(pointer: *const c_void, architecture: &str) -> oid_model_runner::ExpertInfo {
+    let expert_metadata = |suffix: &str| {
+        CString::new(format!("{architecture}.{suffix}"))
+            .ok()
+            .and_then(|key| model_metadata(pointer, &key))
+    };
+    let expert_count = expert_metadata("expert_count");
+    let expert_used_count = expert_metadata("expert_used_count");
+    oid_model_runner::ExpertInfo::from_metadata(
+        expert_count.as_deref(),
+        expert_used_count.as_deref(),
+    )
+}
+
+#[cfg(native_llama_cpp)]
 fn inspect_loaded_profile(pointer: *const c_void, vision: bool) -> oid_model_runner::ModelProfile {
     use oid_model_runner::{CacheStrategy, ModelProfile};
     let architecture =
         model_metadata(pointer, c"general.architecture").unwrap_or_else(|| "unknown".to_owned());
+    let experts = inspect_experts(pointer, &architecture);
     let template_pointer = unsafe { ffi::llama_model_chat_template(pointer, std::ptr::null()) };
     let template = if template_pointer.is_null() {
         String::new()
@@ -3359,6 +3375,7 @@ fn inspect_loaded_profile(pointer: *const c_void, vision: bool) -> oid_model_run
     let pooling_key = CString::new(format!("{architecture}.pooling_type")).ok();
     ModelProfile {
         architecture,
+        experts,
         context_length: u32::try_from(unsafe { ffi::llama_model_n_ctx_train(pointer) })
             .unwrap_or(0),
         completion,

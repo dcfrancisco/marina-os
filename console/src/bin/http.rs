@@ -1971,6 +1971,7 @@ fn profile_capabilities(profile: &ModelProfile) -> Vec<&'static str> {
 fn profile_json(profile: &ModelProfile) -> Value {
     json!({
         "architecture": profile.architecture, "training_context_length": profile.context_length,
+        "experts": { "kind": profile.experts.kind, "expert_count": profile.experts.expert_count, "experts_per_token": profile.experts.experts_per_token, "explanation": profile.experts.explanation, "active_parameters": null },
         "capabilities": profile_capabilities(profile), "tokenizer_adds_bos": profile.tokenizer_adds_bos,
         "cache_strategy": match profile.cache { CacheStrategy::Disabled => "disabled", CacheStrategy::Attention => "attention", CacheStrategy::Recurrent => "recurrent_checkpoint" },
         "tools_declared": profile.tools_declared,
@@ -4681,6 +4682,7 @@ mod tests {
     fn loaded_profile_fixture() -> oid_runtime::ModelProfile {
         oid_runtime::ModelProfile {
             architecture: "arbitrary-architecture".to_owned(),
+            experts: oid_runtime::ExpertInfo::from_metadata(None, None),
             context_length: 4096,
             completion: true,
             chat: true,
@@ -4702,6 +4704,8 @@ mod tests {
         let mut profile = loaded_profile_fixture();
         profile.tool_format = None;
         let json = super::profile_json(&profile);
+        assert_eq!(json["experts"]["kind"], "unknown");
+        assert!(json["experts"]["active_parameters"].is_null());
         assert_eq!(json["tools_declared"], true);
         assert_eq!(json["embedding_declared"], true);
         assert!(!super::profile_capabilities(&profile).contains(&"tools"));

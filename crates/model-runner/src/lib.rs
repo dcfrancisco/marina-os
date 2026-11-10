@@ -10,7 +10,7 @@
 pub mod output;
 pub mod profile;
 pub mod structured_output;
-pub use profile::{CacheStrategy, ModelProfile, ReasoningFormat, ToolFormat};
+pub use profile::{CacheStrategy, ExpertInfo, ModelProfile, ReasoningFormat, ToolFormat};
 
 pub use structured_output::StructuredOutput;
 

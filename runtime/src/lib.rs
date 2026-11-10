@@ -44,6 +44,6 @@ pub use training::{
 };
 
 // Shared serving facts contain no engine-native handles.
-pub use oid_model_runner::{CacheStrategy, ModelProfile, ReasoningFormat, ToolFormat};
+pub use oid_model_runner::{CacheStrategy, ExpertInfo, ModelProfile, ReasoningFormat, ToolFormat};
 
 pub use oid_model_runner::output::{ParsedText, ReasoningStreamParser};
