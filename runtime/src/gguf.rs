@@ -1,7 +1,7 @@
 //! Bounded, non-loading GGUF metadata inspection for discovery.
 
 use std::collections::{HashMap, HashSet};
-use std::io::{self, Read};
+use std::io::{self, Read, Seek};
 use std::path::Path;
 
 #[derive(Default)]
@@ -13,6 +13,7 @@ pub(crate) struct DiscoveryFacts {
     block_count: Option<u64>,
     embedding_length: Option<u64>,
     expert_metadata_present: bool,
+    alignment: Option<u64>,
 }
 
 // llama.cpp's GGUF general.file_type identifies the dominant tensor format;
@@ -147,6 +148,7 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
         let kind = u32::try_from(number(&mut reader, 4)?).unwrap_or(u32::MAX);
         let data = value(&mut reader, kind)?;
         if (key == "general.architecture" && kind == 8)
+            || key == "general.alignment"
             || (key == "general.file_type" && kind == 4)
             || (key.ends_with(".context_length") && matches!(kind, 0 | 2 | 4 | 10))
             || (key.ends_with(".block_count") && matches!(kind, 0 | 2 | 4 | 10))
@@ -154,8 +156,9 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
             || key.ends_with(".expert_count")
             || key.ends_with(".expert_used_count")
         {
-            let data = if (key.ends_with(".expert_count") || key.ends_with(".expert_used_count"))
-                && !matches!(kind, 0 | 2 | 4 | 10)
+            let data = if (key == "general.alignment" && kind != 4)
+                || ((key.ends_with(".expert_count") || key.ends_with(".expert_used_count"))
+                    && !matches!(kind, 0 | 2 | 4 | 10))
             {
                 Some(String::new())
             } else {
@@ -193,6 +196,13 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
     );
     Ok((
         DiscoveryFacts {
+            alignment: match entries.iter().find(|(key, _)| key == "general.alignment") {
+                None => Some(32),
+                Some((_, value)) => value
+                    .as_deref()
+                    .and_then(|v| v.parse::<u64>().ok())
+                    .filter(|v| v.is_power_of_two()),
+            },
             architecture: architecture.clone(),
             context,
             block_count: expert_value("block_count").and_then(|v| v.parse().ok()),
@@ -218,6 +228,13 @@ pub(crate) fn inspect_tensors(path: &Path) -> io::Result<Vec<crate::models::Gguf
 pub(crate) fn inspect_tensor_evidence(
     path: &Path,
 ) -> io::Result<(DiscoveryFacts, Vec<crate::models::GgufTensorInfo>)> {
+    let (facts, tensors, _, _) = read_tensor_headers(path)?;
+    Ok((facts, tensors))
+}
+
+fn read_tensor_headers(
+    path: &Path,
+) -> io::Result<(DiscoveryFacts, Vec<crate::models::GgufTensorInfo>, u64, u64)> {
     let file = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(file.take(32 * 1_048_576));
     let (facts, count) = read_metadata(&mut reader)?;
@@ -265,7 +282,93 @@ pub(crate) fn inspect_tensor_evidence(
             offset,
         });
     }
-    Ok((facts, tensors))
+    let header_end = reader.stream_position()?;
+    let file_len = reader.get_ref().get_ref().metadata()?.len();
+    Ok((facts, tensors, header_end, file_len))
+}
+
+/// Sizes from the pinned ggml type definitions; unsupported types stay unknown.
+fn tensor_block(kind: u32) -> Option<(u64, u64)> {
+    match kind {
+        0 => Some((1, 4)),
+        1 | 30 => Some((1, 2)),
+        2 => Some((32, 18)),
+        3 => Some((32, 20)),
+        6 => Some((32, 22)),
+        7 => Some((32, 24)),
+        8 => Some((32, 34)),
+        10 => Some((256, 84)),
+        11 => Some((256, 110)),
+        12 => Some((256, 144)),
+        13 => Some((256, 176)),
+        14 => Some((256, 210)),
+        _ => None,
+    }
+}
+
+pub(crate) fn inspect_storage(path: &Path) -> io::Result<crate::models::GgufStorageInfo> {
+    let (facts, tensors, header_end, file_len) = read_tensor_headers(path)?;
+    let invalid = || {
+        io::Error::new(
+            io::ErrorKind::InvalidData,
+            "invalid GGUF tensor storage extent",
+        )
+    };
+    let alignment = facts.alignment.ok_or_else(invalid)?;
+    let data_start = header_end.checked_add(alignment - 1).ok_or_else(invalid)? & !(alignment - 1);
+    if data_start > file_len {
+        return Err(invalid());
+    }
+    let mut total_elements = 0_u64;
+    let mut total_bytes = Some(0_u64);
+    let mut extents = Vec::with_capacity(tensors.len());
+    for tensor in &tensors {
+        let elements = tensor
+            .shape
+            .iter()
+            .try_fold(1_u64, |a, b| a.checked_mul(*b))
+            .ok_or_else(invalid)?;
+        total_elements = total_elements.checked_add(elements).ok_or_else(invalid)?;
+        if tensor.offset % alignment != 0 {
+            return Err(invalid());
+        }
+        let start = data_start.checked_add(tensor.offset).ok_or_else(invalid)?;
+        if start >= file_len {
+            return Err(invalid());
+        }
+        let size = if let Some((block, bytes)) = tensor_block(tensor.tensor_type) {
+            if tensor.shape[0] % block != 0 {
+                return Err(invalid());
+            }
+            Some((elements / block).checked_mul(bytes).ok_or_else(invalid)?)
+        } else {
+            None
+        };
+        let end = size
+            .map(|n| start.checked_add(n).ok_or_else(invalid))
+            .transpose()?;
+        if end.is_some_and(|end| end > file_len) {
+            return Err(invalid());
+        }
+        total_bytes = match (total_bytes, size) {
+            (Some(a), Some(b)) => Some(a.checked_add(b).ok_or_else(invalid)?),
+            _ => None,
+        };
+        extents.push((start, end));
+    }
+    extents.sort_unstable_by_key(|extent| extent.0);
+    for pair in extents.windows(2) {
+        if pair[0].0 == pair[1].0 || pair[0].1.is_some_and(|end| end > pair[1].0) {
+            return Err(invalid());
+        }
+    }
+    Ok(crate::models::GgufStorageInfo {
+        tensor_count: tensors.len(),
+        elements: total_elements,
+        tensor_bytes: total_bytes,
+        data_offset: data_start,
+        file_bytes: file_len,
+    })
 }
 
 /// Gemma 4 FFN structure checked against llama.cpp e4b6c8ca6a6e8da70248da30709e897e7cc8615e.
@@ -563,6 +666,55 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
 
+    #[test]
+    fn storage_checks_dense_moe_and_invalid_extents() {
+        let path = std::env::temp_dir().join(format!("talvik-storage-{}.gguf", std::process::id()));
+        let fixture = |descriptors: &[(&str, &[u64], u32, u64)], data_len: usize| {
+            let mut bytes = b"GGUF".to_vec();
+            bytes.extend_from_slice(&3_u32.to_le_bytes());
+            bytes.extend_from_slice(&u64::try_from(descriptors.len()).unwrap().to_le_bytes());
+            bytes.extend_from_slice(&0_u64.to_le_bytes());
+            for (name, shape, kind, offset) in descriptors {
+                text(&mut bytes, name);
+                bytes.extend_from_slice(&u32::try_from(shape.len()).unwrap().to_le_bytes());
+                for dim in *shape {
+                    bytes.extend_from_slice(&dim.to_le_bytes());
+                }
+                bytes.extend_from_slice(&kind.to_le_bytes());
+                bytes.extend_from_slice(&offset.to_le_bytes());
+            }
+            let aligned = (bytes.len() + 31) & !31;
+            bytes.resize(aligned + data_len, 0);
+            bytes
+        };
+        let check = |descriptors: &[(&str, &[u64], u32, u64)], len| {
+            std::fs::write(&path, fixture(descriptors, len)).unwrap();
+            crate::models::inspect_artifact_storage(&path)
+        };
+        let dense = [("dense", &[32, 2][..], 2, 0)];
+        let info = check(&dense, 36).unwrap();
+        assert_eq!((info.elements, info.tensor_bytes), (64, Some(36)));
+        assert!(check(&dense, 35).is_err());
+        let moe = [
+            ("router", &[4, 8][..], 0, 0),
+            ("experts", &[32, 2, 8][..], 2, 128),
+        ];
+        let info = check(&moe, 416).unwrap();
+        assert_eq!((info.elements, info.tensor_bytes), (544, Some(416)));
+        assert!(check(&[("bad", &[31][..], 2, 0)], 32).is_err());
+        assert!(check(&[("bad", &[1][..], 0, 1)], 32).is_err());
+        assert!(check(&[("bad", &[1][..], 0, u64::MAX - 31)], 32).is_err());
+        assert!(check(&[("a", &[16][..], 0, 0), ("b", &[1][..], 0, 32)], 100).is_err());
+        assert_eq!(
+            check(&[("unknown", &[1][..], 999, 0)], 1)
+                .unwrap()
+                .tensor_bytes,
+            None
+        );
+        assert!(check(&[("huge", &[u64::MAX][..], 0, 0)], 32).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
+
     fn expert_fixture(
         architecture: &str,
         metadata: &[(&str, u32, u64)],
@@ -728,6 +880,10 @@ mod tests {
         let facts = inspect(path).expect("inspect metadata");
         let tensors = crate::models::inspect_artifact_tensors(path).expect("inspect tensors");
         assert!(!tensors.is_empty(), "expected tensor descriptors");
+        println!(
+            "storage={:?}",
+            crate::models::inspect_artifact_storage(path).expect("inspect storage")
+        );
         let markers: Vec<_> = tensors
             .iter()
             .filter(|tensor| {

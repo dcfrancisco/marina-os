@@ -8,7 +8,7 @@ existing contracts and the Phenom CPU baseline. Branch:
 | --- | --- | --- | --- |
 | WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Tensor descriptors inspected on one local Gemma artifact; data extents and broader artifact coverage remain unverified. |
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma 4 dense header classification verified against the matching installed CPU build; real MoE inference remains unqualified. |
-| WP-03 | PENDING | WP-01; parameter and memory accounting with explicit unknowns | No validated tensor accounting yet. |
+| WP-03 | IN_PROGRESS | WP-01; parameter and memory accounting with explicit unknowns | Checked on-disk tensor accounting and known-type extents implemented; unsupported types remain unknown, runtime estimates and broader type coverage remain. |
 | WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Installed build provenance and CPU-only build flags verified below; GPU placement and real MoE execution remain unqualified. |
 | WP-05 | PENDING | WP-01/03; architecture-aware KV estimate and lifecycle tests | Current fixed per-token allowance is a heuristic. |
 | WP-06 | PENDING | WP-01/03/04; hardware-aware suitability | Existing hardware detection is partial. |
@@ -65,10 +65,11 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: WP-03 — add checked tensor element/byte accounting and validate
-alignment, relative offsets and data extents against artifact length. Preserve
-unknown sizes for unsupported types. Use the local Qwen artifact for routine
-qualification; keep real MoE inference qualification separate.
+NEXT ACTION: Continue WP-03 by extending checked accounting to additional pinned
+GGML tensor types with source-backed block sizes and tests, then integrate the
+validated storage facts into diagnostics without treating them as runtime memory.
+Next independent package: WP-04 backend placement capability inspection; do not
+claim GPU or MoE inference qualification without a suitable tested artifact/device.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -175,3 +176,41 @@ persistent process. Host session limits still apply.
   renamed, converted or downloaded. WP-02 remains in progress for broader
   architecture coverage and actual MoE qualification; next work is WP-03 as
   specified above.
+
+
+2026-11-10 WP-03 storage slice and preserved Phenom baseline:
+
+- Source baseline `343a4e5`; installed `talvik` and `talvikd` each report
+  0.1.0, git `a74f92d351d457722d379bd12d11141880f2d330`, dirty=true,
+  x86_64 Linux release. SHA-256 respectively
+  `037dda6156b0d4ec9429c38f99f8481f5e28c8e89cf57a1a1927daa025405701` and
+  `ca3c08c92be623f76100c76e2e9ff8fe3ef84051a997929c3b5981982ea37fcf`.
+  These build identities do not independently prove source commit 343a4e5.
+- Installed native library provenance and CPU flags are recorded above.
+  SHA-256: libllama `1f940cf8a33991bb34097adbad6c5cb7b1622ae66c1f6601678f31e839d273a5`,
+  libggml-base `4dea1ba5429f2098362c0042df62e5e12f27c378d8ba375c69630e52ba6018fc`,
+  libggml-cpu `bd6862f8daea6d845d64ad7ffadcb0c245366c9845167acadbb54a329783c45e`,
+  libggml `9e108c5567a12923887c576ac1f7e950a190959b49b80afc8e7bcd998c2e9d09`,
+  libmtmd `eb693328c20be94ed3773621b679c685c00a16f7ca3d6345672d4bd2034efce6`,
+  liboid-chat-template `5a74b7000b35b87c862ced43a9d330971c898e8ed272548850933ad2f39add55`.
+  Qwen SHA-256 `74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db`.
+- Effective YAML: name `Talvik`; model directory `/home/danny/.marina/models`;
+  registry `/home/danny/.marina/models.registry`; state `/home/danny/.marina`;
+  default `qwen2.5-0.5b-instruct-q4_k_m`; auto_download false; auto_load true.
+  The user unit points to this YAML and does not set a default-model override.
+  `timeout 45s /home/danny/.marina/bin/talvik --plain run --default 'Reply only OK.'`
+  returned `OK.` with exit 0 against the existing daemon. No installed files
+  were rebuilt or changed. This smoke test required access outside the sandbox.
+- Added a separate bounded storage inspector with checked element and byte sums,
+  aligned section and offsets, file bounds and known extent overlap validation.
+  Block sizes follow the pinned local ggml definitions; unsupported types retain
+  unknown total bytes and cannot have complete extent/overlap validation.
+  Counts include all experts, not just active parameters; disk bytes are not
+  runtime memory or proof of backend compatibility. Real MoE inference remains
+  unverified. The opt-in Qwen inspection found 291 tensors, 630167424 elements,
+  485452288 tensor bytes, offset 5947744, file size 491400032.
+- Focused GGUF tests, Qwen opt-in inspection, formatting and strict runtime
+  test Clippy passed. Runtime library suite passed 66 tests, one ignored, with
+  loopback access outside the sandbox. The sandbox run failed its HTTP bind and
+  once hit an unrelated timing-sensitive generation assertion; the unrestricted
+  rerun passed both. No workspace or actual MoE inference test was run.

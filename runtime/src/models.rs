@@ -32,6 +32,31 @@ pub fn inspect_artifact_tensors(path: &Path) -> std::io::Result<Vec<GgufTensorIn
     crate::gguf::inspect_tensors(path)
 }
 
+/// Validated on-disk tensor accounting. This is not a runtime memory estimate.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GgufStorageInfo {
+    /// Number of tensor descriptors.
+    pub tensor_count: usize,
+    /// Total elements across all tensors, including all experts.
+    pub elements: u64,
+    /// Sum of tensor payload bytes; unknown when any tensor type is unsupported.
+    pub tensor_bytes: Option<u64>,
+    /// Start of the aligned tensor data section.
+    pub data_offset: u64,
+    /// Complete artifact length, including metadata and padding.
+    pub file_bytes: u64,
+}
+
+/// Inspect on-disk tensor storage without loading tensor data.
+/// Unknown tensor types retain unknown byte lengths and cannot have their full
+/// extents validated. No runtime allocation or backend support is implied.
+///
+/// # Errors
+/// Returns an error for invalid headers, arithmetic, alignment, or known extents.
+pub fn inspect_artifact_storage(path: &Path) -> std::io::Result<GgufStorageInfo> {
+    crate::gguf::inspect_storage(path)
+}
+
 /// Classify bounded GGUF metadata and tensor-header evidence without loading.
 ///
 /// Valid expert declarations classify other architectures. Gemma 4 additionally
