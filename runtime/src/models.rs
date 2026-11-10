@@ -32,6 +32,22 @@ pub fn inspect_artifact_tensors(path: &Path) -> std::io::Result<Vec<GgufTensorIn
     crate::gguf::inspect_tensors(path)
 }
 
+/// Classify bounded GGUF metadata and tensor-header evidence without loading.
+///
+/// Valid expert declarations classify other architectures. Gemma 4 additionally
+/// requires consistent per-layer FFN shapes; missing declarations can be resolved
+/// from its complete FFN structure. Malformed or conflicting evidence stays unknown.
+/// This does not validate tensor data, offsets, types or backend serving support.
+///
+/// # Errors
+/// Returns an error on malformed, truncated or over-limit GGUF header data.
+pub fn inspect_artifact_expert_evidence(
+    path: &Path,
+) -> std::io::Result<oid_model_runner::ExpertInfo> {
+    let (facts, tensors) = crate::gguf::inspect_tensor_evidence(path)?;
+    Ok(crate::gguf::classify_experts(facts, &tensors))
+}
+
 /// Inspect declared expert routing metadata without loading the model.
 ///
 /// Missing or inconsistent declarations remain unknown; tensor contents are

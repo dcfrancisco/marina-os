@@ -7,14 +7,14 @@ existing contracts and the Phenom CPU baseline. Branch:
 | ID | Status | Dependencies and acceptance criteria | Evidence / blocker |
 | --- | --- | --- | --- |
 | WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Tensor descriptors inspected on one local Gemma artifact; data extents and broader artifact coverage remain unverified. |
-| WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma classification unverified. |
+| WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma 4 dense header classification verified against the matching installed CPU build; real MoE inference remains unqualified. |
 | WP-03 | PENDING | WP-01; parameter and memory accounting with explicit unknowns | No validated tensor accounting yet. |
-| WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Existing CPU and GPU-layer controls need qualification. |
+| WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Installed build provenance and CPU-only build flags verified below; GPU placement and real MoE execution remain unqualified. |
 | WP-05 | PENDING | WP-01/03; architecture-aware KV estimate and lifecycle tests | Current fixed per-token allowance is a heuristic. |
 | WP-06 | PENDING | WP-01/03/04; hardware-aware suitability | Existing hardware detection is partial. |
 | WP-07 | PENDING | WP-03/04; bounded reproducible benchmark | No Gemma inference measurement yet. |
 | WP-08 | PENDING | WP-01/03/06; compatible IPC diagnostics and security | Existing authenticated profile extended in `479d05a`. |
-| WP-09 | PENDING | Relevant work packages; regression and packaging evidence | Prior narrow tests in baseline; workspace qualification outstanding. |
+| WP-09 | PENDING | Relevant work packages; regression and packaging evidence | Runtime 65, CLI 18, daemon 53 and native 21 unit tests pass; default-policy native acceptance passes in debug and release. Workspace qualification outstanding. |
 | WP-10 | IN_PROGRESS | Safe independent work and reproducible evidence workflow | Baseline documents Git workflow; unattended invocation below. |
 
 Runtime library tests: 60 passed with loopback access; the sandboxed run had
@@ -65,9 +65,10 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Investigate local build provenance for the installed native
-library, then design conservative tensor-based classification with fixtures
-that preserve unknown when source/backend behavior cannot be established.
+NEXT ACTION: WP-03 — add checked tensor element/byte accounting and validate
+alignment, relative offsets and data extents against artifact length. Preserve
+unknown sizes for unsupported types. Use the local Qwen artifact for routine
+qualification; keep real MoE inference qualification separate.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -85,3 +86,92 @@ continue its next action within the existing permissions.'` A later session can
 use `codex exec resume <session-id>` after inspecting `codex exec resume --help`.
 The command does not remove approval boundaries and has not been launched as a
 persistent process. Host session limits still apply.
+
+2026-11-10 implementation and Phenom default-policy slice:
+
+- Preserved the initial uncommitted GGUF/model diff in
+  `/tmp/talvik-classification-start.patch` before editing. Completed
+  `inspect_artifact_expert_evidence`: architecture-scoped metadata, complete
+  Gemma 4 dense/shared FFN shapes, matching router/expert shapes and counts,
+  unknown on incomplete/conflicting/malformed evidence. Other architectures
+  retain conservative metadata-only classification. Inferred routing counts
+  stay unset. No registry schema, placement or serving-capability changes.
+- Native provenance: installed `libllama.so.0.8.0` and cached build output at
+  `/home/danny/.cache/llama.cpp-talvik-build/bin/` have identical SHA-256
+  `1f940cf8a33991bb34097adbad6c5cb7b1622ae66c1f6601678f31e839d273a5`.
+  All three installed GGML libraries also match that build byte-for-byte.
+  Its CMake cache identifies `/home/danny/.cache/llama.cpp-talvik` as source;
+  that clean checkout is `e4b6c8ca6a6e8da70248da30709e897e7cc8615e`.
+  Generated `common/build-info.cpp` records `e4b6c8c`, GNU 15.2.0, Linux x86_64.
+  Build flags: CPU ON, NATIVE/CUDA/VULKAN OFF. This is local build provenance,
+  not a reproducible-build attestation. The separate `18443257` checkout
+  discussed above is not the installed build's source. No library was changed.
+- The matching source's `src/models/gemma4.cpp` selects MoE layers through
+  `ffn_gate_inp`, with dense FFNs on every layer. Header-only inspection of
+  local Gemma (666 tensors) now reports dense with unknown routing counts.
+  Gemma was never loaded or used for inference in this slice.
+- Qwen generation uncovered an ABI omission: `ContextParams` lacked
+  `size_t moe_cache_size` before `abort_callback`. The shifted callback was
+  interpreted as a GPU MoE cache request. Added the missing field; a C probe
+  compiled against the matching headers reports size 168, cache offset 112,
+  abort 120, embeddings 136, samplers 144, parent context 160 on this amd64
+  installation. The native regression test checks these offsets and returned
+  defaults. Initial context failures at 256 and 512 tokens preceded this fix;
+  Qwen generation succeeds with the corrected binding.
+- Existing policy audit: built-in default is Gemma, but the Phenom YAML and
+  user service both explicitly disabled it (`default_model: none` and
+  `TALVIK_DEFAULT_MODEL=none`). Discovery ordering did not set the daemon's
+  startup default. `talvik run --default` resolves the same configuration;
+  explicit CLI/API IDs bypass it. The optional chat/benchmark client retains
+  its documented resident/default/smallest policy and requires an explicit
+  model for separate MoE qualification. Existing qualification workflows
+  already select Qwen or require a caller-supplied model; none were run with
+  Gemma. Missing/load failures warn and keep the daemon running without a
+  replacement model. CLI generation failures now include the requested ID.
+- New `scripts/test-talvik-default-model.py` uses disposable state, the caller's
+  existing small GGUF and a synthetic invalid large-model entry. Covers YAML
+  selection, persistent-registry process restart, environment overrides,
+  disabled bootstrap, explicit CLI/API requests, successful `run --default`,
+  missing/incompatible defaults and no large-model substitution. No downloads,
+  conversions, installed-model writes or real Gemma loads occur.
+- Validation: `cargo fmt --all -- --check`; with
+  `LD_LIBRARY_PATH=/home/danny/.marina/lib`, `cargo test -j 2 -p
+  oid-llama-cpp-sys --lib` (21 passed, 8 opt-in ignored), `cargo test -j 2 -p
+  oid-console --bin talvik --bin talvikd` (18 + 53 passed), `cargo test -j 2 -p
+  oid-runtime --lib` (65 passed, 1 opt-in ignored), and `cargo clippy -j 2 -p
+  oid-runtime -p oid-llama-cpp-sys -p oid-console --lib --bins --tests -- -D
+  warnings` passed. Socket suites required execution outside the sandbox;
+  sandbox failures were permission errors. The opt-in Gemma header inspection
+  passed using `TALVIK_GGUF_INSPECT_PATH` and the exact ignored test command
+  above. No workspace suite or real MoE inference benchmark was run.
+- Default-policy acceptance command (debug):
+  `LD_LIBRARY_PATH=/home/danny/.marina/lib python3
+  scripts/test-talvik-default-model.py --model
+  /home/danny/.marina/models/qwen2.5-0.5b-instruct-q4_k_m.gguf` passed.
+  Qwen is 491,400,032 bytes, SHA-256
+  `74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db`.
+  Initial release acceptance rejected a build without native linkage; release
+  rebuilding explicitly requires `LLAMA_CPP_LIB_DIR=/home/danny/.marina/lib`,
+  `LLAMA_CPP_REQUIRED=1`, `LLAMA_CPP_MTMD_REQUIRED=1`, and
+  `LLAMA_CPP_CHAT_TEMPLATE_REQUIRED=1`. No changes to stopped MarinaOS work.
+
+- Final release acceptance used the same Python command with
+  `--bin-dir target/release` and passed after native linkage was required.
+  Installed the validated release `talvik`/`talvikd` without replacing any
+  native library. The Phenom's `/home/danny/.marina/config.yaml` now sets
+  `default_model: qwen2.5-0.5b-instruct-q4_k_m`, `auto_download: false`,
+  `auto_load: true`. Removed only `Environment=TALVIK_DEFAULT_MODEL=none`
+  from `/home/danny/.config/systemd/user/talvikd.service`; reloaded the user
+  manager and restarted the service. Prior binaries/config/unit are backed
+  up under `/tmp/talvik*-installed.before`, `/tmp/talvik-config.before.yaml`
+  and `/tmp/talvikd-service.before`. Installation settings are not global
+  repository defaults.
+- Live verification (`/tmp/talvik-phenom-default-verification.json`): release
+  daemon active, backend `llama.cpp`, sole resident
+  `qwen2.5-0.5b-instruct-q4_k_m`; process environment confirms YAML source and
+  no default-model environment override. `/readyz` reports inference ready,
+  and installed `talvik --plain run --default 'Reply only OK.'` succeeds.
+  Native library SHA-256 is unchanged. No installed model was removed,
+  renamed, converted or downloaded. WP-02 remains in progress for broader
+  architecture coverage and actual MoE qualification; next work is WP-03 as
+  specified above.

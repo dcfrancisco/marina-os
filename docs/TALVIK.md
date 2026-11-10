@@ -178,6 +178,26 @@ continues. Set `default_model: none` or `TALVIK_DEFAULT_MODEL=none` to disable
 automatic loading. To use a smaller model, set `TALVIK_DEFAULT_MODEL` and
 configure its source and optional checksum.
 
+For an already installed small model on a CPU-only machine, configure its exact
+registry ID in `$HOME/.marina/config.yaml`, for example:
+
+```yaml
+default_model: qwen2.5-0.5b-instruct-q4_k_m
+auto_download: false
+auto_load: true
+```
+
+This is an installation setting; other installations retain their defaults.
+`TALVIK_DEFAULT_MODEL` (including a systemd `Environment=` setting) overrides
+YAML; `MARINA_DEFAULT_MODEL` is the lower-priority environment alias. Remove a
+service override to share YAML with `talvik run --default`, then reload the
+user systemd manager and restart `talvikd`. Explicit CLI/API model IDs remain
+unchanged. A missing or incompatible configured model produces a warning and
+the daemon continues without substituting another model. Startup resolution
+uses configuration on every restart, independently of discovery ordering or
+previous residency. Routine qualification should use the small model explicitly;
+MoE inference qualification is separate.
+
 ## Security defaults
 
 Local Unix sockets are user-only. HTTP is disabled unless configured, bearer

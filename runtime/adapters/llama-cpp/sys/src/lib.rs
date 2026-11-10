@@ -120,6 +120,8 @@ struct ContextParams {
     cb_eval_user_data: *mut c_void,
     type_k: i32,
     type_v: i32,
+    // Present in the installed e4b6c8c backend; keep subsequent ABI offsets intact.
+    moe_cache_size: usize,
     abort_callback: Option<unsafe extern "C" fn(*mut c_void) -> bool>,
     abort_callback_data: *mut c_void,
     embeddings: bool,
@@ -2208,6 +2210,23 @@ impl NativeModel {
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)]
 mod tests {
+    #[cfg(all(native_llama_cpp, target_pointer_width = "64"))]
+    #[test]
+    fn context_params_match_verified_native_layout() {
+        use super::ContextParams;
+        // Compared with sizeof/offsetof from the installed build's llama.h.
+        assert_eq!(std::mem::size_of::<ContextParams>(), 168);
+        assert_eq!(std::mem::offset_of!(ContextParams, moe_cache_size), 112);
+        assert_eq!(std::mem::offset_of!(ContextParams, abort_callback), 120);
+        assert_eq!(std::mem::offset_of!(ContextParams, embeddings), 136);
+        assert_eq!(std::mem::offset_of!(ContextParams, samplers), 144);
+        assert_eq!(std::mem::offset_of!(ContextParams, ctx_other), 160);
+        let params = unsafe { super::ffi::llama_context_default_params() };
+        assert_eq!(params.moe_cache_size, 0);
+        assert!(params.abort_callback.is_none());
+        assert!(params.abort_callback_data.is_null());
+    }
+
     use super::{cached_prefix_matches, classify_decode_result, decode_error, DecodeOutcome};
     #[cfg(native_mtmd)]
     use std::io::Cursor;

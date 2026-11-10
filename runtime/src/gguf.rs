@@ -1,6 +1,6 @@
 //! Bounded, non-loading GGUF metadata inspection for discovery.
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::io::{self, Read};
 use std::path::Path;
 
@@ -10,6 +10,9 @@ pub(crate) struct DiscoveryFacts {
     pub context: Option<u64>,
     pub quantization: Option<&'static str>,
     pub experts: Option<oid_model_runner::ExpertInfo>,
+    block_count: Option<u64>,
+    embedding_length: Option<u64>,
+    expert_metadata_present: bool,
 }
 
 // llama.cpp's GGUF general.file_type identifies the dominant tensor format;
@@ -146,6 +149,8 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
         if (key == "general.architecture" && kind == 8)
             || (key == "general.file_type" && kind == 4)
             || (key.ends_with(".context_length") && matches!(kind, 0 | 2 | 4 | 10))
+            || (key.ends_with(".block_count") && matches!(kind, 0 | 2 | 4 | 10))
+            || (key.ends_with(".embedding_length") && matches!(kind, 0 | 2 | 4 | 10))
             || key.ends_with(".expert_count")
             || key.ends_with(".expert_used_count")
         {
@@ -188,8 +193,12 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
     );
     Ok((
         DiscoveryFacts {
-            architecture,
+            architecture: architecture.clone(),
             context,
+            block_count: expert_value("block_count").and_then(|v| v.parse().ok()),
+            embedding_length: expert_value("embedding_length").and_then(|v| v.parse().ok()),
+            expert_metadata_present: expert_value("expert_count").is_some()
+                || expert_value("expert_used_count").is_some(),
             experts: Some(experts),
             quantization: entries
                 .iter()
@@ -203,9 +212,15 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
 }
 
 pub(crate) fn inspect_tensors(path: &Path) -> io::Result<Vec<crate::models::GgufTensorInfo>> {
+    inspect_tensor_evidence(path).map(|(_, tensors)| tensors)
+}
+
+pub(crate) fn inspect_tensor_evidence(
+    path: &Path,
+) -> io::Result<(DiscoveryFacts, Vec<crate::models::GgufTensorInfo>)> {
     let file = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(file.take(32 * 1_048_576));
-    let (_, count) = read_metadata(&mut reader)?;
+    let (facts, count) = read_metadata(&mut reader)?;
     if count > 100_000 {
         return Err(io::Error::new(
             io::ErrorKind::InvalidData,
@@ -250,7 +265,138 @@ pub(crate) fn inspect_tensors(path: &Path) -> io::Result<Vec<crate::models::Gguf
             offset,
         });
     }
-    Ok(tensors)
+    Ok((facts, tensors))
+}
+
+/// Gemma 4 FFN structure checked against llama.cpp e4b6c8ca6a6e8da70248da30709e897e7cc8615e.
+/// This classifies header evidence only, never serving/backend compatibility.
+pub(crate) fn classify_experts(
+    facts: DiscoveryFacts,
+    tensors: &[crate::models::GgufTensorInfo],
+) -> oid_model_runner::ExpertInfo {
+    use oid_model_runner::ExpertInfo;
+    let declared = facts
+        .experts
+        .unwrap_or_else(|| ExpertInfo::from_metadata(None, None));
+    if facts.architecture.as_deref() != Some("gemma4") {
+        return declared;
+    }
+    // Malformed or partial expert declarations must not be rescued by tensor names.
+    if facts.expert_metadata_present && declared.kind == "unknown" {
+        return declared;
+    }
+    let unknown = || ExpertInfo {
+        kind: "unknown",
+        expert_count: None,
+        experts_per_token: None,
+        explanation: Some("Gemma 4 FFN tensor evidence is incomplete or conflicts with metadata"),
+    };
+    let (Some(blocks @ 1..=100_000), Some(embedding @ 1..)) =
+        (facts.block_count, facts.embedding_length)
+    else {
+        return unknown();
+    };
+    let shapes: HashMap<_, _> = tensors
+        .iter()
+        .map(|tensor| (tensor.name.as_str(), tensor.shape.as_slice()))
+        .collect();
+    let mut recognized = HashSet::new();
+    let mut routed_count = None;
+    for layer in 0..blocks {
+        let shape = |suffix: &str| {
+            shapes
+                .get(format!("blk.{layer}.{suffix}.weight").as_str())
+                .copied()
+        };
+        // Every Gemma 4 layer has a dense FFN, also used as the shared expert.
+        let Some([input, ff]) = shape("ffn_gate") else {
+            return unknown();
+        };
+        if *input != embedding
+            || shape("ffn_up") != Some(&[embedding, *ff])
+            || shape("ffn_down") != Some(&[*ff, embedding])
+        {
+            return unknown();
+        }
+        if let Some(router) = shape("ffn_gate_inp") {
+            let [input, count] = router else {
+                return unknown();
+            };
+            let Ok(count32) = u32::try_from(*count) else {
+                return unknown();
+            };
+            if *input != embedding
+                || count32 == 0
+                || routed_count.is_some_and(|previous| previous != count32)
+            {
+                return unknown();
+            }
+            routed_count = Some(count32);
+            if !valid_expert_shapes(&shape, embedding, *count) {
+                return unknown();
+            }
+            for suffix in [
+                "ffn_gate_inp",
+                "ffn_gate_exps",
+                "ffn_up_exps",
+                "ffn_gate_up_exps",
+                "ffn_down_exps",
+            ] {
+                if shape(suffix).is_some() {
+                    recognized.insert(format!("blk.{layer}.{suffix}.weight"));
+                }
+            }
+        }
+    }
+    // Orphaned, out-of-range or unrecognized expert/router names defeat dense inference.
+    if tensors.iter().any(|tensor| {
+        ["expert", "exps", "router", "ffn_gate_inp"]
+            .iter()
+            .any(|marker| tensor.name.contains(marker))
+            && !recognized.contains(&tensor.name)
+            && !tensor
+                .name
+                .strip_suffix(".scale")
+                .is_some_and(|name| recognized.contains(&format!("{name}.weight")))
+    }) {
+        return unknown();
+    }
+    if let Some(count) = declared.expert_count {
+        if count != routed_count.unwrap_or(0) {
+            return unknown();
+        }
+        return declared;
+    }
+    ExpertInfo {
+        kind: if routed_count.is_some() {
+            "moe"
+        } else {
+            "dense"
+        },
+        // Counts remain metadata facts; shapes alone do not declare routing settings.
+        expert_count: None,
+        experts_per_token: None,
+        explanation: Some("Gemma 4 FFN tensor structure; expert routing counts are not declared"),
+    }
+}
+
+fn valid_expert_shapes<'a>(
+    shape: &impl Fn(&str) -> Option<&'a [u64]>,
+    embedding: u64,
+    count: u64,
+) -> bool {
+    let Some([ff, output, experts]) = shape("ffn_down_exps") else {
+        return false;
+    };
+    if *output != embedding || *experts != count {
+        return false;
+    }
+    let separate = shape("ffn_gate_exps") == Some(&[embedding, *ff, count])
+        && shape("ffn_up_exps") == Some(&[embedding, *ff, count]);
+    let fused = ff
+        .checked_mul(2)
+        .is_some_and(|width| shape("ffn_gate_up_exps") == Some(&[embedding, width, count]));
+    separate || fused
 }
 
 #[cfg(test)]
@@ -417,6 +563,161 @@ mod tests {
         std::fs::remove_file(path).unwrap();
     }
 
+    fn expert_fixture(
+        architecture: &str,
+        metadata: &[(&str, u32, u64)],
+        tensors: &[(&str, &[u64])],
+    ) -> Vec<u8> {
+        let mut bytes = b"GGUF".to_vec();
+        bytes.extend_from_slice(&3_u32.to_le_bytes());
+        bytes.extend_from_slice(&u64::try_from(tensors.len()).unwrap().to_le_bytes());
+        bytes.extend_from_slice(&u64::try_from(metadata.len() + 1).unwrap().to_le_bytes());
+        text(&mut bytes, "general.architecture");
+        bytes.extend_from_slice(&8_u32.to_le_bytes());
+        text(&mut bytes, architecture);
+        for (key, kind, value) in metadata {
+            text(&mut bytes, key);
+            bytes.extend_from_slice(&kind.to_le_bytes());
+            if *kind == 8 {
+                text(&mut bytes, &value.to_string());
+            } else {
+                bytes.extend_from_slice(&value.to_le_bytes()[..if *kind == 10 { 8 } else { 4 }]);
+            }
+        }
+        for (name, shape) in tensors {
+            text(&mut bytes, name);
+            bytes.extend_from_slice(&u32::try_from(shape.len()).unwrap().to_le_bytes());
+            for size in *shape {
+                bytes.extend_from_slice(&size.to_le_bytes());
+            }
+            bytes.extend_from_slice(&0_u32.to_le_bytes());
+            bytes.extend_from_slice(&0_u64.to_le_bytes());
+        }
+        bytes
+    }
+
+    #[test]
+    fn gemma_classification_requires_complete_consistent_ffn_evidence() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-gemma-evidence-{}.gguf", std::process::id()));
+        let metadata = [
+            ("gemma4.block_count", 4, 1),
+            ("gemma4.embedding_length", 4, 4),
+        ];
+        let dense: Vec<(&str, &[u64])> = vec![
+            ("blk.0.ffn_gate.weight", &[4, 6]),
+            ("blk.0.ffn_up.weight", &[4, 6]),
+            ("blk.0.ffn_down.weight", &[6, 4]),
+        ];
+        let mut moe = dense.clone();
+        moe.extend([
+            ("blk.0.ffn_gate_inp.weight", &[4, 8][..]),
+            ("blk.0.ffn_gate_up_exps.weight", &[4, 12, 8][..]),
+            ("blk.0.ffn_down_exps.weight", &[6, 4, 8][..]),
+        ]);
+        let inspect_case = |arch, metadata: &[(&str, u32, u64)], tensors: &[(&str, &[u64])]| {
+            std::fs::write(&path, expert_fixture(arch, metadata, tensors)).unwrap();
+            crate::models::inspect_artifact_expert_evidence(&path).unwrap()
+        };
+        let info = inspect_case("gemma4", &metadata, &dense);
+        assert_eq!(info.kind, "dense");
+        assert_eq!(info.expert_count, None);
+        assert_eq!(inspect_case("gemma4", &metadata, &moe).kind, "moe");
+        let mut declared = metadata.to_vec();
+        declared.extend([
+            ("gemma4.expert_count", 4, 8),
+            ("gemma4.expert_used_count", 4, 2),
+        ]);
+        let info = inspect_case("gemma4", &declared, &moe);
+        assert_eq!(
+            (info.kind, info.expert_count, info.experts_per_token),
+            ("moe", Some(8), Some(2))
+        );
+        assert_eq!(inspect_case("gemma4", &declared, &dense).kind, "unknown");
+        for (kind, count) in [(4, 0), (4, 7), (8, 8), (10, u64::MAX)] {
+            let mut invalid = metadata.to_vec();
+            invalid.push(("gemma4.expert_count", kind, count));
+            assert_eq!(inspect_case("gemma4", &invalid, &moe).kind, "unknown");
+        }
+        assert_eq!(
+            inspect_case("unrecognized", &metadata, &dense).kind,
+            "unknown"
+        );
+        assert_eq!(inspect_case("gemma4", &[], &dense).kind, "unknown");
+        assert_eq!(
+            inspect_case("gemma4", &metadata, &dense[..2]).kind,
+            "unknown"
+        );
+        assert_eq!(inspect_case("gemma4", &metadata, &moe[..4]).kind, "unknown");
+        let mut malformed_shape = moe.clone();
+        malformed_shape[3].1 = &[8, 4];
+        assert_eq!(
+            inspect_case("gemma4", &metadata, &malformed_shape).kind,
+            "unknown"
+        );
+        let mut orphan = dense.clone();
+        orphan.push(("blk.1.ffn_gate_inp.weight", &[4, 8]));
+        assert_eq!(inspect_case("gemma4", &metadata, &orphan).kind, "unknown");
+        // Metadata remains useful for architectures without a verified tensor rule.
+        for (count, expected) in [(0, "dense"), (8, "moe")] {
+            assert_eq!(
+                inspect_case("other", &[("other.expert_count", 4, count)], &[]).kind,
+                expected
+            );
+        }
+        std::fs::write(&path, b"GGUF").unwrap();
+        assert!(crate::models::inspect_artifact_expert_evidence(&path).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn expert_inspection_preserves_discovery_and_registry_metadata() {
+        use crate::models::{ModelDiscovery, ModelRegistry};
+        let directory =
+            std::env::temp_dir().join(format!("talvik-expert-discovery-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let path = directory.join("small.gguf");
+        std::fs::write(
+            &path,
+            expert_fixture(
+                "qwen2",
+                &[
+                    ("qwen2.expert_count", 4, 0),
+                    ("qwen2.context_length", 4, 4096),
+                    ("general.file_type", 4, 15),
+                ],
+                &[],
+            ),
+        )
+        .unwrap();
+        std::fs::write(directory.join("broken.gguf"), b"GGUF").unwrap();
+        let registry = ModelRegistry::in_memory(oid_shared::EventBus::new());
+        let discovery = ModelDiscovery::new(vec![directory.clone()]);
+        assert_eq!(discovery.discover(&registry, "llama.cpp").unwrap().len(), 2);
+        let before = registry.inspect("small").unwrap();
+        assert_eq!(
+            crate::models::inspect_artifact_expert_evidence(&path)
+                .unwrap()
+                .kind,
+            "dense"
+        );
+        assert_eq!(registry.inspect("small").unwrap(), before);
+        assert_eq!(
+            (
+                before.family.as_str(),
+                before.quantization.as_str(),
+                before.context_window
+            ),
+            ("qwen2", "Q4_K_M", 4096)
+        );
+        assert!(discovery
+            .discover(&registry, "llama.cpp")
+            .unwrap()
+            .is_empty());
+        assert_eq!(registry.inspect("broken").unwrap().family, "unknown");
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
     /// Run explicitly with a caller-supplied local model; never acquires one.
     #[test]
     #[ignore = "requires TALVIK_GGUF_INSPECT_PATH pointing to a local GGUF"]
@@ -440,7 +741,7 @@ mod tests {
             "architecture={:?} quantization={:?} experts={:?} tensors={} marker_names={markers:?}",
             facts.architecture,
             facts.quantization,
-            facts.experts,
+            crate::models::inspect_artifact_expert_evidence(path).expect("classify evidence"),
             tensors.len()
         );
     }
