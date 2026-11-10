@@ -303,3 +303,8 @@ Continuation evidence after 80bdf8b:
   peak memory, and model load duration remain NOT MEASURED. No MoE inference.
 - Additional malformed alignment fixture PASS (zero, non-power-of-two,
   wrong metadata type). GGUF filter now 11 passed, one ignored.
+
+- Follow-up KV validation rejects explicitly zero key dimensions and layer
+  counts instead of reporting a zero/fallback estimate. Focused KV test and
+  strict runtime test Clippy PASS. Admission integration, suitability and
+  remaining qualification remain actionable and are not declared complete.

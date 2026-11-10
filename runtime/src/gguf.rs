@@ -322,11 +322,17 @@ fn estimate_kv(facts: &DiscoveryFacts) -> Option<u64> {
     if embedding == 0 || embedding % heads != 0 {
         return None;
     }
-    let key = get("key_length").unwrap_or(embedding / heads);
-    let value = get("value_length").unwrap_or(embedding / heads);
+    let dimension = |suffix: &str| match facts.attention.get(&format!("{arch}.attention.{suffix}"))
+    {
+        Some(0) => None,
+        Some(value) => Some(*value),
+        None => Some(embedding / heads),
+    };
+    let key = dimension("key_length")?;
+    let value = dimension("value_length")?;
     key.checked_add(value)?
         .checked_mul(kv_heads)?
-        .checked_mul(facts.block_count?.checked_mul(2)?)
+        .checked_mul(facts.block_count.filter(|n| *n > 0)?.checked_mul(2)?)
 }
 
 /// Sizes from the pinned ggml type definitions; unsupported types stay unknown.
@@ -803,6 +809,13 @@ mod tests {
             .attention
             .insert("qwen2.attention.head_count_kv".into(), 2);
         assert_eq!(super::estimate_kv(&facts), Some(12288));
+        facts
+            .attention
+            .insert("qwen2.attention.key_length".into(), 0);
+        assert_eq!(super::estimate_kv(&facts), None);
+        facts.attention.remove("qwen2.attention.key_length");
+        facts.block_count = Some(0);
+        assert_eq!(super::estimate_kv(&facts), None);
         facts.block_count = Some(u64::MAX);
         assert_eq!(super::estimate_kv(&facts), None);
         facts.architecture = Some("gemma4".into());
