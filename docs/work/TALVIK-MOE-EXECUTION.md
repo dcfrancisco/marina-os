@@ -6,7 +6,7 @@ existing contracts and the Phenom CPU baseline. Branch:
 
 | ID | Status | Dependencies and acceptance criteria | Evidence / blocker |
 | --- | --- | --- | --- |
-| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Declared dominant quantization and architecture-scoped expert metadata are parsed; tensor inspection remains. |
+| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Declared quantization and expert metadata are parsed; bounded tensor descriptors now available, but real-artifact qualification remains. |
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma classification unverified. |
 | WP-03 | PENDING | WP-01; parameter and memory accounting with explicit unknowns | No validated tensor accounting yet. |
 | WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Existing CPU and GPU-layer controls need qualification. |
@@ -32,9 +32,20 @@ cargo test -j 2 -p oid-runtime --lib gguf::tests` passed 4 tests; `cargo fmt
 loader path failed to start because `libllama.so.0` was not found. No workspace
 suite or real-model inference was run for this slice.
 
-NEXT ACTION: Add bounded GGUF tensor inspection with malformed fixtures, then
-qualify the installed native library's exact revision against the source before
-relying on its behavior.
+Latest tensor slice: `models::inspect_artifact_tensors` returns names, shapes,
+raw type identifiers and relative offsets without loading tensor data. It limits
+the combined metadata and tensor-header read to 32 MiB and tensor count to
+100,000; it rejects duplicate or empty names, invalid dimension counts, zero or
+overflowing shapes and truncation. It does not validate tensor types, offsets,
+data extents or backend compatibility. `LD_LIBRARY_PATH=/home/danny/.marina/lib
+cargo test -j 2 -p oid-runtime --lib gguf::tests` passed 5 tests; `cargo fmt
+--all -- --check` and `LD_LIBRARY_PATH=/home/danny/.marina/lib cargo clippy -j 2
+-p oid-runtime --lib -- -D warnings` passed. No real artifact, workspace suite,
+or inference was exercised in this slice.
+
+NEXT ACTION: Qualify bounded tensor inspection against the existing local Gemma
+artifact and investigate the installed native library's exact revision against
+the source before relying on its behavior for classification.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,

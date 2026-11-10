@@ -111,6 +111,10 @@ fn value<R: Read>(reader: &mut R, kind: u32) -> io::Result<Option<String>> {
 pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
     let file = std::fs::File::open(path)?;
     let mut reader = std::io::BufReader::new(file.take(32 * 1_048_576));
+    read_metadata(&mut reader).map(|(facts, _)| facts)
+}
+
+fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
     let mut magic = [0; 4];
     reader.read_exact(&mut magic)?;
     if &magic != b"GGUF" || !matches!(number(&mut reader, 4)?, 2 | 3) {
@@ -119,7 +123,7 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
             "unsupported GGUF header",
         ));
     }
-    let _tensors = number(&mut reader, 8)?;
+    let tensors = number(&mut reader, 8)?;
     let count = number(&mut reader, 8)?;
     if count > 10_000 {
         return Err(io::Error::new(
@@ -182,17 +186,71 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
         expert_value("expert_count"),
         expert_value("expert_used_count"),
     );
-    Ok(DiscoveryFacts {
-        architecture,
-        context,
-        experts: Some(experts),
-        quantization: entries
-            .iter()
-            .find(|(key, _)| key == "general.file_type")
-            .and_then(|(_, v)| v.as_ref())
-            .and_then(|v| v.parse::<u64>().ok())
-            .and_then(file_type),
-    })
+    Ok((
+        DiscoveryFacts {
+            architecture,
+            context,
+            experts: Some(experts),
+            quantization: entries
+                .iter()
+                .find(|(key, _)| key == "general.file_type")
+                .and_then(|(_, v)| v.as_ref())
+                .and_then(|v| v.parse::<u64>().ok())
+                .and_then(file_type),
+        },
+        tensors,
+    ))
+}
+
+pub(crate) fn inspect_tensors(path: &Path) -> io::Result<Vec<crate::models::GgufTensorInfo>> {
+    let file = std::fs::File::open(path)?;
+    let mut reader = std::io::BufReader::new(file.take(32 * 1_048_576));
+    let (_, count) = read_metadata(&mut reader)?;
+    if count > 100_000 {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "too many GGUF tensors",
+        ));
+    }
+    let mut tensors = Vec::new();
+    let mut names = HashSet::new();
+    for _ in 0..count {
+        let name = string(&mut reader)?;
+        if name.is_empty() || !names.insert(name.clone()) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "empty or duplicate GGUF tensor name",
+            ));
+        }
+        let dimensions = number(&mut reader, 4)?;
+        if !(1..=4).contains(&dimensions) {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "invalid GGUF tensor dimensions",
+            ));
+        }
+        let mut shape = Vec::new();
+        let mut elements = 1_u64;
+        for _ in 0..dimensions {
+            let size = number(&mut reader, 8)?;
+            elements = elements
+                .checked_mul(size)
+                .filter(|n| *n > 0)
+                .ok_or_else(|| {
+                    io::Error::new(io::ErrorKind::InvalidData, "invalid GGUF tensor shape")
+                })?;
+            shape.push(size);
+        }
+        let tensor_type = u32::try_from(number(&mut reader, 4)?).expect("four bytes fit in u32");
+        let offset = number(&mut reader, 8)?;
+        tensors.push(crate::models::GgufTensorInfo {
+            name,
+            shape,
+            tensor_type,
+            offset,
+        });
+    }
+    Ok(tensors)
 }
 
 #[cfg(test)]
@@ -308,6 +366,54 @@ mod tests {
             crate::models::inspect_artifact_experts(&path).unwrap().kind,
             "unknown"
         );
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn tensor_descriptors_are_bounded_and_reject_malformed_headers() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-gguf-tensors-{}.gguf", std::process::id()));
+        let header = |count: u64| {
+            let mut bytes = b"GGUF".to_vec();
+            bytes.extend_from_slice(&3_u32.to_le_bytes());
+            bytes.extend_from_slice(&count.to_le_bytes());
+            bytes.extend_from_slice(&0_u64.to_le_bytes());
+            bytes
+        };
+        let descriptor = |bytes: &mut Vec<u8>, name: &str, shape: &[u64]| {
+            text(bytes, name);
+            bytes.extend_from_slice(&(shape.len() as u32).to_le_bytes());
+            for size in shape {
+                bytes.extend_from_slice(&size.to_le_bytes());
+            }
+            bytes.extend_from_slice(&999_u32.to_le_bytes());
+            bytes.extend_from_slice(&64_u64.to_le_bytes());
+        };
+        let mut valid = header(1);
+        descriptor(&mut valid, "blk.0.ffn_gate_inp.weight", &[4, 8]);
+        std::fs::write(&path, &valid).unwrap();
+        let tensors = crate::models::inspect_artifact_tensors(&path).unwrap();
+        assert_eq!(tensors.len(), 1);
+        assert_eq!(tensors[0].name, "blk.0.ffn_gate_inp.weight");
+        assert_eq!(tensors[0].shape, [4, 8]);
+        assert_eq!((tensors[0].tensor_type, tensors[0].offset), (999, 64));
+        valid.pop();
+        std::fs::write(&path, valid).unwrap();
+        assert!(crate::models::inspect_artifact_tensors(&path).is_err());
+
+        let mut duplicate = header(2);
+        descriptor(&mut duplicate, "same", &[1]);
+        descriptor(&mut duplicate, "same", &[1]);
+        let mut zero = header(1);
+        descriptor(&mut zero, "zero", &[0]);
+        let mut overflow = header(1);
+        descriptor(&mut overflow, "overflow", &[u64::MAX, 2]);
+        let mut dimensions = header(1);
+        descriptor(&mut dimensions, "dimensions", &[1, 1, 1, 1, 1]);
+        for invalid in [header(100_001), duplicate, zero, overflow, dimensions] {
+            std::fs::write(&path, invalid).unwrap();
+            assert!(crate::models::inspect_artifact_tensors(&path).is_err());
+        }
         std::fs::remove_file(path).unwrap();
     }
 }

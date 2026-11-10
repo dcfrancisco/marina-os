@@ -8,6 +8,30 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
+/// A GGUF tensor descriptor, without loading or validating tensor data.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GgufTensorInfo {
+    /// Tensor name as declared in the artifact.
+    pub name: String,
+    /// Tensor dimensions in GGUF order.
+    pub shape: Vec<u64>,
+    /// Raw GGML tensor type identifier, which may be unknown.
+    pub tensor_type: u32,
+    /// Offset relative to the GGUF tensor data section.
+    pub offset: u64,
+}
+
+/// Read bounded GGUF tensor descriptors without loading tensor data.
+///
+/// Descriptors are limited to 100,000 tensors and 32 MiB of header data.
+/// Types, offsets, data extents and backend compatibility are not validated.
+///
+/// # Errors
+/// Returns an error on malformed, truncated or over-limit header data.
+pub fn inspect_artifact_tensors(path: &Path) -> std::io::Result<Vec<GgufTensorInfo>> {
+    crate::gguf::inspect_tensors(path)
+}
+
 /// Inspect declared expert routing metadata without loading the model.
 ///
 /// Missing or inconsistent declarations remain unknown; tensor contents are
