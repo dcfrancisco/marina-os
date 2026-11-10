@@ -65,12 +65,11 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Finish WP-03/05 diagnostics validation: run the Qwen opt-in storage
-inspection on current HEAD, add malformed alignment and aggregate-overflow fixtures,
-then connect the architecture-aware F16 KV estimate to admission with explicit
-heuristic fallback and lifecycle tests. Finish WP-06 conservative suitability,
-WP-07 bounded Qwen benchmark, and WP-08/09 authenticated compatibility/default
-acceptance. Do not install or restart the known-good release.
+NEXT ACTION: Build repository talvik/talvikd with required native linkage and
+run the isolated default-model acceptance --report against Qwen after the admission
+integration. Add a native cancellation/prefix-reuse acceptance run with the local
+Qwen fixture. Then finish authenticated suitability diagnostics tests, packaging
+checks and cold-context benchmarking. Preserve installed release and configuration.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -308,3 +307,25 @@ Continuation evidence after 80bdf8b:
   counts instead of reporting a zero/fallback estimate. Focused KV test and
   strict runtime test Clippy PASS. Admission integration, suitability and
   remaining qualification remain actionable and are not declared complete.
+
+
+Continuation after 2afb643 — architecture-aware admission and suitability:
+
+- Load preflight, post-native-load admission, and generation admission now use
+  bounded GGUF Qwen2/Llama F16 KV metadata. The reservation is max(estimated
+  KV bytes/token, previous 16 KiB/token allowance) times requested context.
+  This preserves the scratch/padding floor and unknown-layout fallback while
+  rejecting larger known requirements and arithmetic overflow. No native context
+  lifecycle or installed configuration changed. Metadata is re-read before
+  admission, avoiding stale estimates across registry/artifact changes.
+- New admission tests cover unknown/smaller/larger rates, overflow and exact
+  boundaries. Runtime suite PASS 70 tests (one ignored) including cancellation,
+  eviction/reload, unload, queue recovery and rejected-load preservation.
+- Added conservative hardware suitability function and fixtures for supported,
+  unsupported, unknown, constrained and overflowing requirements. Optional HTTP
+  suitability reports a payload-based estimate at 4096 context plus KV floor
+  and 512 MiB safety margin. Backend compatibility remains unknown on artifact
+  inspection; passing the resource estimate does not assert loadability or speed.
+  Repacking and retained native contexts remain outside this estimate.
+- Strict runtime/console Clippy and formatting PASS. Installed Qwen smoke PASS
+  (OK., exit 0) without restart or installation. No MarinaOS image changes.

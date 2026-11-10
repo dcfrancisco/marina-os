@@ -276,8 +276,14 @@ impl MarinaRuntime {
             let resident = loaded.contains_key(&request.model_id);
             drop(loaded);
             if resident
-                && admit_generation(&self.hardware, &self.loaded, request, &self.resource_policy)
-                    .is_ok()
+                && admit_generation(
+                    &self.hardware,
+                    &self.loaded,
+                    &self.models,
+                    request,
+                    &self.resource_policy,
+                )
+                .is_ok()
             {
                 self.touch_model(&request.model_id);
                 return Ok(());
@@ -289,6 +295,7 @@ impl MarinaRuntime {
                     return admit_generation(
                         &self.hardware,
                         &self.loaded,
+                        &self.models,
                         request,
                         &self.resource_policy,
                     );
@@ -432,9 +439,13 @@ impl RuntimeApi for MarinaRuntime {
 fn admit_generation(
     hardware: &HardwareService,
     loaded: &Arc<Mutex<BTreeMap<String, LoadedModel>>>,
+    models: &ModelRegistry,
     request: &GenerationRequest,
     policy: &ResourcePolicy,
 ) -> Result<(), RuntimeError> {
+    let kv = models
+        .inspect(&request.model_id)
+        .and_then(|model| artifact_kv_rate(&model));
     let resident = loaded
         .lock()
         .map_err(|_| RuntimeError::ModelLifecycle("loader unavailable".to_owned()))?;
@@ -442,11 +453,12 @@ fn admit_generation(
         .get(&request.model_id)
         .map_or(0, |model| model.memory_bytes);
     let resident_bytes = resident.values().map(|model| model.memory_bytes).sum();
-    admit_memory_with_resident(
+    admit_memory_with_kv(
         hardware.snapshot().available_ram_bytes,
         resident_bytes,
         model_bytes,
         request.options.context_size,
+        kv,
         policy,
     )
 }
@@ -466,6 +478,24 @@ fn admit_memory(
     admit_memory_with_resident(available, 0, model_bytes, context_size, policy)
 }
 
+fn artifact_kv_rate(model: &ModelMetadata) -> Option<u64> {
+    crate::models::estimate_artifact_kv_bytes_per_token(std::path::Path::new(&model.location))
+        .ok()
+        .flatten()
+}
+
+// Keep the previous allowance as a floor for scratch/padding uncertainty.
+// Supported metadata can increase this reservation; unknown layouts retain it.
+fn context_reservation(context_size: u32, kv_rate: Option<u64>) -> Result<u64, RuntimeError> {
+    let rate = kv_rate
+        .unwrap_or(KV_BYTES_PER_CONTEXT_TOKEN)
+        .max(KV_BYTES_PER_CONTEXT_TOKEN);
+    u64::from(context_size)
+        .checked_mul(rate)
+        .ok_or_else(|| RuntimeError::ModelLifecycle("context memory estimate overflow".to_owned()))
+}
+
+#[cfg(test)]
 fn admit_memory_with_resident(
     available: Option<u64>,
     resident_bytes: u64,
@@ -473,16 +503,30 @@ fn admit_memory_with_resident(
     context_size: u32,
     policy: &ResourcePolicy,
 ) -> Result<(), RuntimeError> {
+    admit_memory_with_kv(
+        available,
+        resident_bytes,
+        incremental_model_bytes,
+        context_size,
+        None,
+        policy,
+    )
+}
+
+fn admit_memory_with_kv(
+    available: Option<u64>,
+    resident_bytes: u64,
+    incremental_model_bytes: u64,
+    context_size: u32,
+    kv_rate: Option<u64>,
+    policy: &ResourcePolicy,
+) -> Result<(), RuntimeError> {
     let available = available.ok_or_else(|| {
         RuntimeError::ModelLifecycle(
             "memory admission unavailable: available system memory is unknown".to_owned(),
         )
     })?;
-    let context_bytes = u64::from(context_size)
-        .checked_mul(KV_BYTES_PER_CONTEXT_TOKEN)
-        .ok_or_else(|| {
-            RuntimeError::ModelLifecycle("context memory estimate overflow".to_owned())
-        })?;
+    let context_bytes = context_reservation(context_size, kv_rate)?;
     let incremental_required = incremental_model_bytes
         .saturating_add(context_bytes)
         .saturating_add(policy.safety_margin_bytes);
@@ -875,22 +919,25 @@ impl RuntimeService for MarinaRuntime {
         // request is already known to be impossible. The backend-reported
         // size is checked again after native loading because a GGUF may need
         // additional repack/working memory beyond its registry estimate.
-        admit_memory_with_resident(
+        let kv_rate = artifact_kv_rate(&model);
+        admit_memory_with_kv(
             hardware.available_ram_bytes,
             resident_bytes,
             peak_estimated_model_bytes,
             DEFAULT_CONTEXT_SIZE,
+            kv_rate,
             &self.resource_policy,
         )?;
         self.bus.publish(&RuntimeEvent::ModelLoading(id.to_owned()));
         self.models.set_status(id, &ModelStatus::Loading)?;
         match self.backends.load_model(&model) {
             Ok(loaded) => {
-                if let Err(error) = admit_memory_with_resident(
+                if let Err(error) = admit_memory_with_kv(
                     self.hardware.snapshot().available_ram_bytes,
                     resident_bytes,
                     loaded.memory_bytes,
                     DEFAULT_CONTEXT_SIZE,
+                    kv_rate,
                     &self.resource_policy,
                 ) {
                     let cleanup = self.backends.unload_model(id).err();
@@ -1404,6 +1451,26 @@ mod tests {
                 .expect("clock")
                 .as_nanos()
         ))
+    }
+
+    #[test]
+    fn architecture_kv_reservation_keeps_floor_and_rejects_overflow() {
+        assert_eq!(super::context_reservation(512, None).unwrap(), 512 * 16384);
+        assert_eq!(
+            super::context_reservation(512, Some(12288)).unwrap(),
+            512 * 16384
+        );
+        assert_eq!(
+            super::context_reservation(512, Some(32768)).unwrap(),
+            512 * 32768
+        );
+        assert!(super::context_reservation(2, Some(u64::MAX)).is_err());
+        let policy = ResourcePolicy {
+            safety_margin_bytes: 0,
+            ..ResourcePolicy::default()
+        };
+        assert!(super::admit_memory_with_kv(Some(32768), 0, 0, 1, Some(32768), &policy).is_ok());
+        assert!(super::admit_memory_with_kv(Some(32767), 0, 0, 1, Some(32768), &policy).is_err());
     }
 
     #[test]

@@ -37,6 +37,53 @@ pub struct HardwareSnapshot {
     pub npu: Option<String>,
 }
 
+/// Conservative model fit assessment; support requires independent backend evidence.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModelSuitability {
+    /// supported, unsupported, unknown, or `resource_constrained`.
+    pub status: &'static str,
+    /// Estimated weights plus context reservation and safety margin.
+    pub estimated_required_bytes: Option<u64>,
+}
+
+/// Assess a model against available RAM using caller-validated storage and KV facts.
+/// Backend compatibility must be observed independently; available disk is irrelevant.
+#[must_use]
+pub fn assess_model_suitability(
+    hardware: &HardwareSnapshot,
+    weights: Option<u64>,
+    kv_per_token: Option<u64>,
+    context: u32,
+    backend_compatible: Option<bool>,
+) -> ModelSuitability {
+    let required = weights.and_then(|weights| {
+        kv_per_token?
+            .max(16 * 1024)
+            .checked_mul(u64::from(context))?
+            .checked_add(weights)?
+            .checked_add(512 * 1_048_576)
+    });
+    let status = if backend_compatible == Some(false) {
+        "unsupported"
+    } else if required
+        .zip(hardware.available_ram_bytes)
+        .is_some_and(|(need, available)| need > available)
+    {
+        "resource_constrained"
+    } else if required.is_some()
+        && hardware.available_ram_bytes.is_some()
+        && backend_compatible == Some(true)
+    {
+        "supported"
+    } else {
+        "unknown"
+    };
+    ModelSuitability {
+        status,
+        estimated_required_bytes: required,
+    }
+}
+
 /// Provider interface for runtime hardware consumers.
 pub trait HardwareProvider: Send + Sync {
     /// Return the current hardware snapshot.
@@ -300,6 +347,26 @@ fn simd_capabilities() -> Vec<String> {
 mod tests {
     use super::HardwareService;
     use oid_shared::EventBus;
+
+    #[test]
+    fn suitability_requires_memory_and_backend_evidence() {
+        let hardware = super::HardwareSnapshot {
+            available_ram_bytes: Some(1_073_741_824),
+            ..Default::default()
+        };
+        let assess = |weights, kv, backend| {
+            super::assess_model_suitability(&hardware, weights, kv, 512, backend).status
+        };
+        assert_eq!(assess(Some(1024), Some(12288), Some(true)), "supported");
+        assert_eq!(assess(Some(1024), None, Some(true)), "unknown");
+        assert_eq!(assess(Some(1024), Some(12288), None), "unknown");
+        assert_eq!(
+            assess(Some(1_073_741_824), Some(12288), Some(true)),
+            "resource_constrained"
+        );
+        assert_eq!(assess(Some(1024), Some(12288), Some(false)), "unsupported");
+        assert_eq!(assess(Some(u64::MAX), Some(12288), Some(true)), "unknown");
+    }
 
     #[test]
     fn detects_portable_snapshot_without_accelerator_requirements() {

@@ -342,6 +342,7 @@ fn handle(
                         "resident": resident_ids.iter().any(|id| id == &model.id),
                         "estimated_memory_mib": model.memory_requirement_mb,
                         "storage_accounting": storage_accounting_json(&model.location),
+                        "suitability": suitability_json(&model.location, &runtime.hardware()),
                         "runtime_profile": runtime.model_profile(&model.id).as_ref().map(profile_json)
                     })
                 })
@@ -674,7 +675,8 @@ fn ollama_show(
             "declared_capabilities": model.capabilities,
             "runtime_profile": runtime.model_profile(model_id).as_ref().map(profile_json),
             "model_info": {},
-            "storage_accounting": storage_accounting_json(&model.location)
+            "storage_accounting": storage_accounting_json(&model.location),
+            "suitability": suitability_json(&model.location, &runtime.hardware())
         }),
     )
 }
@@ -1968,6 +1970,20 @@ fn profile_capabilities(profile: &ModelProfile) -> Vec<&'static str> {
         }
     }
     result
+}
+
+fn suitability_json(location: &str, hardware: &oid_runtime::HardwareSnapshot) -> Value {
+    let path = std::path::Path::new(location);
+    let weights = oid_runtime::models::inspect_artifact_storage(path)
+        .ok()
+        .and_then(|s| s.tensor_bytes);
+    let kv = oid_runtime::models::estimate_artifact_kv_bytes_per_token(path)
+        .ok()
+        .flatten();
+    let fit = oid_runtime::hardware::assess_model_suitability(hardware, weights, kv, 4096, None);
+    json!({"status": fit.status, "estimated_required_bytes": fit.estimated_required_bytes,
+        "context_tokens": 4096, "backend_compatibility": null,
+        "basis": "payload-based weight estimate plus context floor and safety margin; excludes repacking and retained contexts"})
 }
 
 fn storage_accounting_json(location: &str) -> Value {
