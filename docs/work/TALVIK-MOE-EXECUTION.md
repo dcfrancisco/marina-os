@@ -6,7 +6,7 @@ existing contracts and the Phenom CPU baseline. Branch:
 
 | ID | Status | Dependencies and acceptance criteria | Evidence / blocker |
 | --- | --- | --- | --- |
-| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Declared quantization and expert metadata are parsed; bounded tensor descriptors now available, but real-artifact qualification remains. |
+| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Tensor descriptors inspected on one local Gemma artifact; data extents and broader artifact coverage remain unverified. |
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma classification unverified. |
 | WP-03 | PENDING | WP-01; parameter and memory accounting with explicit unknowns | No validated tensor accounting yet. |
 | WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Existing CPU and GPU-layer controls need qualification. |
@@ -43,9 +43,31 @@ cargo test -j 2 -p oid-runtime --lib gguf::tests` passed 5 tests; `cargo fmt
 -p oid-runtime --lib -- -D warnings` passed. No real artifact, workspace suite,
 or inference was exercised in this slice.
 
-NEXT ACTION: Qualify bounded tensor inspection against the existing local Gemma
-artifact and investigate the installed native library's exact revision against
-the source before relying on its behavior for classification.
+Latest qualification: the opt-in `gguf::tests::inspect_local_artifact_descriptors`
+test read `/home/danny/.marina/models/gemma-4-E4B-it-Q4_0.gguf` (4,590,807,392
+bytes) with `TALVIK_GGUF_INSPECT_PATH` set to that path and
+`LD_LIBRARY_PATH=/home/danny/.marina/lib cargo test -j 2 -p oid-runtime --lib
+gguf::tests::inspect_local_artifact_descriptors -- --ignored --exact --nocapture`.
+It passed, reporting architecture `gemma4`, `Q4_0`, unknown experts (count not
+declared), 666 tensor descriptors, and no names containing `expert`, `exps`,
+`router`, or `ffn_gate_inp`. This checks header parsing, not tensor data or
+inference; the artifact was identified by path and size, not a fresh digest.
+The regular GGUF test filter passed 5 tests with the opt-in test ignored.
+`cargo fmt --all -- --check` passed. Strict Clippy with `--tests` initially
+failed on a pre-existing fixture's potentially truncating cast; after replacing
+it with a checked conversion, `LD_LIBRARY_PATH=/home/danny/.marina/lib cargo
+clippy -j 2 -p oid-runtime --tests -- -D warnings` passed.
+
+Installed `/home/danny/.marina/lib/libllama.so.0.8.0` has SHA-256
+`1f940cf8a33991bb34097adbad6c5cb7b1622ae66c1f6601678f31e839d273a5` and
+ELF build ID `e041e1153d9003a659c3db2e62a38ddbb80d7832`. Neither establishes
+its source revision. The local source checkout is at `18443257a30c884d5332abb8e7dc43c7ffe42fda`;
+the Linux setup script defaults to `b12060`, which is not resolvable in that
+checkout. No matching installed-library provenance was found in this slice.
+
+NEXT ACTION: Investigate local build provenance for the installed native
+library, then design conservative tensor-based classification with fixtures
+that preserve unknown when source/backend behavior cannot be established.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,

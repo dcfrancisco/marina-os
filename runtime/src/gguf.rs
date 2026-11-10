@@ -382,7 +382,7 @@ mod tests {
         };
         let descriptor = |bytes: &mut Vec<u8>, name: &str, shape: &[u64]| {
             text(bytes, name);
-            bytes.extend_from_slice(&(shape.len() as u32).to_le_bytes());
+            bytes.extend_from_slice(&u32::try_from(shape.len()).unwrap().to_le_bytes());
             for size in shape {
                 bytes.extend_from_slice(&size.to_le_bytes());
             }
@@ -415,5 +415,33 @@ mod tests {
             assert!(crate::models::inspect_artifact_tensors(&path).is_err());
         }
         std::fs::remove_file(path).unwrap();
+    }
+
+    /// Run explicitly with a caller-supplied local model; never acquires one.
+    #[test]
+    #[ignore = "requires TALVIK_GGUF_INSPECT_PATH pointing to a local GGUF"]
+    fn inspect_local_artifact_descriptors() {
+        let path = std::env::var_os("TALVIK_GGUF_INSPECT_PATH")
+            .expect("set TALVIK_GGUF_INSPECT_PATH to a local GGUF");
+        let path = std::path::Path::new(&path);
+        let facts = inspect(path).expect("inspect metadata");
+        let tensors = crate::models::inspect_artifact_tensors(path).expect("inspect tensors");
+        assert!(!tensors.is_empty(), "expected tensor descriptors");
+        let markers: Vec<_> = tensors
+            .iter()
+            .filter(|tensor| {
+                ["expert", "exps", "router", "ffn_gate_inp"]
+                    .iter()
+                    .any(|marker| tensor.name.contains(marker))
+            })
+            .map(|tensor| tensor.name.as_str())
+            .collect();
+        println!(
+            "architecture={:?} quantization={:?} experts={:?} tensors={} marker_names={markers:?}",
+            facts.architecture,
+            facts.quantization,
+            facts.experts,
+            tensors.len()
+        );
     }
 }
