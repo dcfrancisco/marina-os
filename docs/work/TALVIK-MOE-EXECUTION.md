@@ -9,7 +9,7 @@ existing contracts and the Phenom CPU baseline. Branch:
 | WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Tensor descriptors inspected on one local Gemma artifact; data extents and broader artifact coverage remain unverified. |
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma 4 dense header classification verified against the matching installed CPU build; real MoE inference remains unqualified. |
 | WP-03 | IN_PROGRESS | WP-01; parameter and memory accounting with explicit unknowns | Checked on-disk tensor accounting and known-type extents implemented; unsupported types remain unknown, runtime estimates and broader type coverage remain. |
-| WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Installed build provenance and CPU-only build flags verified below; GPU placement and real MoE execution remain unqualified. |
+| WP-04 | IN_PROGRESS | Inspect pinned backend and qualify supported placement | Pinned source and adapter placement inspected; installed CPU-only build verified. GPU placement and real MoE execution remain unqualified. |
 | WP-05 | PENDING | WP-01/03; architecture-aware KV estimate and lifecycle tests | Current fixed per-token allowance is a heuristic. |
 | WP-06 | PENDING | WP-01/03/04; hardware-aware suitability | Existing hardware detection is partial. |
 | WP-07 | PENDING | WP-03/04; bounded reproducible benchmark | No Gemma inference measurement yet. |
@@ -214,3 +214,23 @@ persistent process. Host session limits still apply.
   loopback access outside the sandbox. The sandbox run failed its HTTP bind and
   once hit an unrelated timing-sensitive generation assertion; the unrestricted
   rerun passed both. No workspace or actual MoE inference test was run.
+
+
+2026-11-10 WP-04 independent backend inspection:
+
+- Pinned source `e4b6c8ca` `include/llama.h` defines layer offload,
+  device selection and an experimental expert device cache; its model loader
+  assigns input tensors to CPU and distributes requested repeating/output
+  layers to selected devices. This source inspection does not qualify an
+  accelerator or establish that all operations run there.
+- Talvik selects one enumerated native device, passes the requested GPU layer
+  count and keeps actual offloaded-layer count unknown for GPU requests. The
+  default `moe_cache_size` is zero; Talvik does not expose or qualify that
+  experimental cache. Installed CMake cache confirms CPU ON, CUDA/Vulkan OFF,
+  native CPU tuning OFF. No installed library or service was changed.
+- The native `accelerator_used` diagnostic formerly inferred use from a GPU
+  request. It now reports `None` for GPU requests and `Some(false)` for CPU
+  placement; a targeted unit test covers both. The adapter does not consume it
+  in public `ModelPlacement`. Next: qualify actual placement on a suitable
+  accelerator build and separately test a real MoE artifact. Native unit tests
+  passed 22 with 8 opt-in tests ignored.

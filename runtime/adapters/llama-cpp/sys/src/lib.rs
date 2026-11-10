@@ -771,8 +771,8 @@ pub struct NativePlacement {
     pub requested_gpu_layers: u32,
     /// Actual offloaded layers, only when the pinned API verifies the count.
     pub offloaded_gpu_layers: Option<u32>,
-    /// Whether llama.cpp reports any non-CPU device used by the model.
-    pub accelerator_used: bool,
+    /// Whether accelerator use is known. GPU execution is not verified by this API.
+    pub accelerator_used: Option<bool>,
 }
 
 /// Enumerate devices registered by the linked ggml build.
@@ -2248,6 +2248,14 @@ mod tests {
     }
 
     #[test]
+    fn requested_gpu_layers_do_not_prove_accelerator_use() {
+        use super::{known_accelerator_use, NativeBackend};
+        assert_eq!(known_accelerator_use(NativeBackend::Cpu, 0), Some(false));
+        assert_eq!(known_accelerator_use(NativeBackend::Cuda, 0), Some(false));
+        assert_eq!(known_accelerator_use(NativeBackend::Cuda, 1), None);
+    }
+
+    #[test]
     fn auxiliary_accelerators_are_not_cpu_or_gpu_runners() {
         use super::{classify_native_device as classify, NativeBackend};
         assert_eq!(classify(3, "blas"), None);
@@ -3442,6 +3450,11 @@ impl Drop for NativeModel {
     }
 }
 
+#[cfg(any(native_llama_cpp, test))]
+fn known_accelerator_use(backend: NativeBackend, gpu_layers: u32) -> Option<bool> {
+    (backend == NativeBackend::Cpu || gpu_layers == 0).then_some(false)
+}
+
 /// Load a GGUF file using `llama_model_load_from_file`.
 ///
 /// # Errors
@@ -3540,7 +3553,7 @@ pub fn load_model(
                 // layer count. Keep this unknown instead of echoing the
                 // requested value as an observed fact.
                 offloaded_gpu_layers: (options.gpu_layers == 0).then_some(0),
-                accelerator_used: options.backend != NativeBackend::Cpu && options.gpu_layers > 0,
+                accelerator_used: known_accelerator_use(options.backend, options.gpu_layers),
             },
         })
     }
