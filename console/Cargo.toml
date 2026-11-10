@@ -23,7 +23,7 @@ name = "talvikd"
 path = "src/bin/talvikd.rs"
 
 [[bin]]
-name = "chat"
+name = "ask"
 path = "src/bin/oid-marina-chat.rs"
 
 [dependencies]

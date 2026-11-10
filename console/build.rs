@@ -38,7 +38,7 @@ fn main() {
     } else {
         return;
     };
-    for binary in ["talvik", "talvikd", "console", "chat"] {
+    for binary in ["talvik", "talvikd", "console", "ask"] {
         println!("cargo:rustc-link-arg-bin={binary}={argument}");
     }
 }

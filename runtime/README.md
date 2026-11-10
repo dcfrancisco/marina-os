@@ -99,7 +99,7 @@ surface includes `/healthz`, `/v1/models`, `/v1/models/{id}/load`,
 `/v1/generations/{request_id}/cancel`. The existing Unix socket remains the
 default local transport and uses the same `RuntimeService` application layer.
 `GET /v1/models` reports whether a model is resident, its conservative
-`estimated_memory_mib`, and the configured default model. `chat`
+`estimated_memory_mib`, and the configured default model. `ask`
 honors `OID_MARINA_MODEL`, otherwise selects a resident model, then the
 configured default, then the model with the smallest reported estimate. This
 allows an explicitly loaded model to be used without changing the daemon's
@@ -170,7 +170,7 @@ simultaneous requests cannot race for the active slot or miss queue wakeups.
 
 ### Terminal chat presentation
 
-`talvik run <model-id> <prompt>`, `chat <prompt>`, and OID console
+`talvik run <model-id> <prompt>`, `ask <prompt>`, and OID console
 responses share a streaming terminal renderer:
 
 - Cyan model/answer labels, muted thinking text, bold Markdown headings and
@@ -188,7 +188,7 @@ responses share a streaming terminal renderer:
 - Ctrl+C cancels while waiting for the first token as well as during streaming.
   Progress is cleared and styles reset on handled completion/error/cancellation.
 
-Use `talvik --plain run ...` or `chat --plain ...` to get raw streamed
+Use `talvik --plain run ...` or `ask --plain ...` to get raw streamed
 model text. `TALVIK_PLAIN=1` disables the renderer for all three clients.
 Nonempty `NO_COLOR` disables colors while retaining readable interactive labels.
 `TERM=dumb` and redirected output disable decoration and animations. Progress

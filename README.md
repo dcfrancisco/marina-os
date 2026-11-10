@@ -413,17 +413,16 @@ Linux shell, while OID-specific controls use an explicit `:` prefix. See
 
 ## Executable names
 
-The `oid-console` Cargo package provides `console`, `chat`, `talvik`, and
+The `oid-console` Cargo package provides `console`, `ask`, `talvik`, and
 `talvikd`. Build the optional clients with:
 
 ```sh
-cargo build -j 2 -p oid-console --bin console --bin chat
+cargo build -j 2 -p oid-console --bin console --bin ask
 ```
 
-Source directories and the Cargo package name are unchanged. The chat source
-remains `console/src/bin/oid-marina-chat.rs`. On systems with an existing `chat`
-command (this machine has `/usr/sbin/chat`), use `./target/debug/chat` or
-`cargo run -p oid-console --bin chat -- "Hello"` to select this client explicitly.
+Source directories and the Cargo package name are unchanged. The `ask` source
+remains `console/src/bin/oid-marina-chat.rs`. Run it with
+`cargo run -p oid-console --bin ask -- "Hello"` or `./target/debug/ask`.
 The OID service unit remains `oid-console.service` and launches `/usr/bin/console`.
 
 ## Workspace
