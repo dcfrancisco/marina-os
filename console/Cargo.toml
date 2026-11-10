@@ -11,7 +11,7 @@ build = "build.rs"
 autobins = false
 
 [[bin]]
-name = "oid-console"
+name = "console"
 path = "src/main.rs"
 
 [[bin]]
@@ -23,7 +23,7 @@ name = "talvikd"
 path = "src/bin/talvikd.rs"
 
 [[bin]]
-name = "oid-marina-chat"
+name = "chat"
 path = "src/bin/oid-marina-chat.rs"
 
 [dependencies]

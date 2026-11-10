@@ -45,6 +45,11 @@ class PackageOwnership(unittest.TestCase):
                 # Strip maintainer scripts before any relocated dpkg operation.
                 extracted = work / name
                 run('dpkg-deb', '-R', str(package), str(extracted))
+                if name == 'oid':
+                    self.assertTrue((extracted / 'usr/bin/console').is_file())
+                    self.assertFalse((extracted / 'usr/bin/oid-console').exists())
+                    self.assertIn('ExecStart=/usr/bin/console',
+                                  (extracted / 'usr/lib/systemd/system/oid-console.service').read_text())
                 for script in ['preinst', 'postinst', 'prerm', 'postrm', 'config']:
                     (extracted / 'DEBIAN' / script).unlink(missing_ok=True)
                 safe = work / f'{name}-safe.deb'

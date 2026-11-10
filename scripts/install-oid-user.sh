@@ -22,7 +22,7 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -d "$ROOT/console" ]] || { echo "console source tree not found: $ROOT/console" >&2; exit 1; }
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
-cargo install --path "$ROOT/console" --root "$PREFIX" --locked --force --bin oid-console
+cargo install --path "$ROOT/console" --root "$PREFIX" --locked --force --bin console
 mkdir -p "$MARINA_HOME/models" "$MARINA_HOME/state" "$MARINA_HOME/logs"
 if [[ -n "$NATIVE_LIB_DIR" ]]; then
   [[ -d "$NATIVE_LIB_DIR" ]] || { echo "native library directory not found: $NATIVE_LIB_DIR" >&2; exit 1; }
@@ -30,6 +30,6 @@ if [[ -n "$NATIVE_LIB_DIR" ]]; then
   find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \
     \( -name 'libllama.*' -o -name 'libggml*.*' \) -exec cp -a {} "$MARINA_HOME/lib/" \;
 fi
-printf '%s\n' "installed oid-console: $PREFIX/bin/oid-console" \
+printf '%s\n' "installed console: $PREFIX/bin/console" \
   "Marina remains separate: $MARINA_HOME/bin/marina" \
   "models: $MARINA_HOME/models"

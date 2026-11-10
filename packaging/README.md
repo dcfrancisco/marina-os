@@ -63,7 +63,7 @@ ADR-0023. Marina packaging remains governed by ADR-0014 and WP-0069.
 
 WP-0089 packages these same assets into a versioned Debian artifact with
 `scripts/package-oid-deb.sh`. It includes the `talvikd` daemon, `talvik` client,
-and `oid-console` binaries plus relocatable native libraries; it does not
+and `console` binaries plus relocatable native libraries; it does not
 include model files. Run `scripts/qualify-oid-deb.sh` against the resulting
 package to test dpkg lifecycle behavior in an isolated root.
 
@@ -74,7 +74,7 @@ Build the system package on native Linux from qualified artifacts:
   --version 0.1.0 \
   --talvikd target/release/talvikd \
   --talvik target/release/talvik \
-  --oid-console target/release/oid-console \
+  --oid-console target/release/console \
   --native-lib-dir /path/to/qualified/llama/lib
 ```
 
@@ -85,7 +85,7 @@ The package does not bind or claim Reference local runner's port; Marina retains
 loopback default and can be configured separately.
 
 For a rootless OID client installation, use `scripts/install-oid-user.sh`.
-It installs only `oid-console`; Marina remains managed by
+It installs only `console`; Marina remains managed by
 `scripts/install-model-runner.sh` under `$HOME/.marina`.
 
 The two services intentionally have different identities:

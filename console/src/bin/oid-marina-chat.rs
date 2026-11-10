@@ -189,7 +189,7 @@ fn parse_arguments(arguments: &[String]) -> Result<Arguments, &'static str> {
             index += 2;
         } else {
             if arguments[index].starts_with("--") {
-                return Err("unknown option; usage: oid-marina-chat [--plain] [--timing | --benchmark [--runs N]] <prompt>");
+                return Err("unknown option; usage: chat [--plain] [--timing | --benchmark [--runs N]] <prompt>");
             }
             prompt.push(arguments[index].as_str());
             index += 1;
@@ -198,9 +198,7 @@ fn parse_arguments(arguments: &[String]) -> Result<Arguments, &'static str> {
 
     let prompt = prompt.join(" ");
     if prompt.trim().is_empty() {
-        return Err(
-            "usage: oid-marina-chat [--plain] [--timing | --benchmark [--runs N]] <prompt>",
-        );
+        return Err("usage: chat [--plain] [--timing | --benchmark [--runs N]] <prompt>");
     }
     Ok(Arguments { mode, prompt })
 }

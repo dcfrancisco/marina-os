@@ -40,7 +40,7 @@ impl Application {
         if let Ok(backend) = std::env::var("OID_RUNTIME_BACKEND") {
             if backend != "talvik-ipc" {
                 return Err(std::io::Error::other(
-                    "oid-console is a local MarinaOS client and only supports Talvik IPC; use Talvik's HTTP API from external clients",
+                    "console is a local MarinaOS client and only supports Talvik IPC; use Talvik's HTTP API from external clients",
                 )
                 .into());
             }

@@ -16,7 +16,7 @@ fn standalone_chat_uses_the_talvik_ipc_daemon() {
     ));
     std::fs::create_dir_all(&state_root).expect("chat test state");
     let daemon = support::MockTalvik::start(&state_root);
-    let mut command = Command::new(env!("CARGO_BIN_EXE_oid-marina-chat"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_chat"));
     daemon.configure(&mut command);
     let output = command
         .env("OID_MARINA_MODEL", "qwen")

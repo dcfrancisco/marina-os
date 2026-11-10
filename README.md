@@ -318,7 +318,7 @@ Metal acceleration or replace the full native lifecycle gate in
 [WP-0080](docs/work-packages/WP-0080-marina-macos-arm64-qualification.md).
 
 The OID Console is a Linux-first MarinaOS component. This macOS procedure
-tests Talvik directly and does not require or launch `oid-console`.
+tests Talvik directly and does not require or launch `console`.
 
 ## Talvik service and client
 
@@ -410,6 +410,21 @@ plus an isolated D-Bus transport contract for future desktop adapters.
 Milestone 7 corrects the console interaction model: OID Console remains a real
 Linux shell, while OID-specific controls use an explicit `:` prefix. See
 [WP-0055](docs/work-packages/WP-0055-terminal-identity-and-shell-passthrough.md).
+
+## Executable names
+
+The `oid-console` Cargo package provides `console`, `chat`, `talvik`, and
+`talvikd`. Build the optional clients with:
+
+```sh
+cargo build -j 2 -p oid-console --bin console --bin chat
+```
+
+Source directories and the Cargo package name are unchanged. The chat source
+remains `console/src/bin/oid-marina-chat.rs`. On systems with an existing `chat`
+command (this machine has `/usr/sbin/chat`), use `./target/debug/chat` or
+`cargo run -p oid-console --bin chat -- "Hello"` to select this client explicitly.
+The OID service unit remains `oid-console.service` and launches `/usr/bin/console`.
 
 ## Workspace
 

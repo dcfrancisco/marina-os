@@ -46,7 +46,7 @@ class Console:
         if native:
             env = {**env, "OID_TEST_NATIVE_LIB_DIR": native}
         self.process = subprocess.Popen(
-            [sys.executable, str(pathlib.Path(__file__).resolve()), "--child", str(binary or BIN / "oid-console")],
+            [sys.executable, str(pathlib.Path(__file__).resolve()), "--child", str(binary or BIN / "console")],
             stdin=self.slave, stdout=self.slave, stderr=self.slave,
             env=env, start_new_session=True,
         )
@@ -196,7 +196,7 @@ class ConsoleTests(unittest.TestCase):
             if native:
                 env["DYLD_LIBRARY_PATH"] = native
                 env["LD_LIBRARY_PATH"] = native
-            result = subprocess.run([str(BIN / "oid-console")], input=":status\n:clear\n:quit\n", env=env,
+            result = subprocess.run([str(BIN / "console")], input=":status\n:clear\n:quit\n", env=env,
                                     text=True, capture_output=True, timeout=5)
             self.assertEqual(result.returncode, 0, result.stderr)
             self.assertNotIn("\x1b", result.stdout)

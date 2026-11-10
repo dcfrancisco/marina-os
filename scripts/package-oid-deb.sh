@@ -43,7 +43,7 @@ mkdir -p "$PKG/DEBIAN" "$PKG/usr/bin" "$PKG/usr/lib/marina" \
   "$PKG/usr/libexec" "$PKG/etc/marina" "$PKG/etc/oid"
 install -m 0755 "$TALVIKD" "$PKG/usr/bin/talvikd"
 install -m 0755 "$TALVIK" "$PKG/usr/bin/talvik"
-install -m 0755 "$OID_CONSOLE" "$PKG/usr/bin/oid-console"
+install -m 0755 "$OID_CONSOLE" "$PKG/usr/bin/console"
 find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \
   \( -name 'libllama.so*' -o -name 'libggml*.so*' -o -name 'libmtmd.so*' -o -name 'liboid-chat-template.so*' \) -exec cp -a {} "$PKG/usr/lib/marina/" \;
 [[ -e "$PKG/usr/lib/marina/libllama.so" || -e "$PKG/usr/lib/marina/libllama.so.0" ]] || {

@@ -60,7 +60,7 @@ chroot "$root" env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-instal
 
 install -D -m 0755 "$talvikd" "$root/usr/bin/talvikd"
 install -D -m 0755 "$talvik" "$root/usr/bin/talvik"
-install -D -m 0755 "$oid_console" "$root/usr/bin/oid-console"
+install -D -m 0755 "$oid_console" "$root/usr/bin/console"
 if [ -n "$llama_lib_dir" ]; then
     mkdir -p "$root/usr/lib/marina"
     # Preserve SONAME symlinks as well as regular files. Dropping a symlink
