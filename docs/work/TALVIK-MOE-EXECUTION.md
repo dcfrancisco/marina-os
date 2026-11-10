@@ -65,11 +65,12 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Continue WP-03 by extending checked accounting to additional pinned
-GGML tensor types with source-backed block sizes and tests, then integrate the
-validated storage facts into diagnostics without treating them as runtime memory.
-Next independent package: WP-04 backend placement capability inspection; do not
-claim GPU or MoE inference qualification without a suitable tested artifact/device.
+NEXT ACTION: Finish WP-03/05 diagnostics validation: run the Qwen opt-in storage
+inspection on current HEAD, add malformed alignment and aggregate-overflow fixtures,
+then connect the architecture-aware F16 KV estimate to admission with explicit
+heuristic fallback and lifecycle tests. Finish WP-06 conservative suitability,
+WP-07 bounded Qwen benchmark, and WP-08/09 authenticated compatibility/default
+acceptance. Do not install or restart the known-good release.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -234,3 +235,35 @@ persistent process. Host session limits still apply.
   in public `ModelPlacement`. Next: qualify actual placement on a suitable
   accelerator build and separately test a real MoE artifact. Native unit tests
   passed 22 with 8 opt-in tests ignored.
+
+
+2026-11-10 continued WP-03/05/08 implementation:
+
+- Added every active GGML type in pinned e4b6c8ca ggml.h, with sizes from
+  ggml-common.h and scalar definitions; checked all 36 active type block/byte
+  pairs directly against installed libggml-base ggml_blck_size/ggml_type_size.
+  Removed and future identifiers remain explicitly unsupported.
+- Added optional storage_accounting to authenticated /v1/models and /api/show.
+  Existing fields retain their meanings. Payload, file bytes, total parameters,
+  and data offset are separate; active parameters, resident weight estimates,
+  actual KV allocation and observed runtime memory remain null. Inspection
+  failures return unavailable without exposing paths or OS error details.
+- Added F16 full-attention KV payload estimate per token for qwen2/llama,
+  using layer count, embedding/head dimensions and KV head count with checked
+  arithmetic. Other architectures remain unknown. This excludes padding and
+  scratch and does not yet replace admission's fixed heuristic.
+- Gemma header-only storage test PASS: 666 tensors, 7463013674 elements,
+  4574983336 payload bytes, data offset 15822880, file size 4590807392;
+  dense evidence. No weights loaded. Focused parser suite PASS (10 tests,
+  one opt-in ignored); HTTP storage diagnostic fixture PASS. Strict runtime
+  and console Clippy PASS before the final KV fixture addition.
+- Baseline installed Qwen smoke PASS again (OK., exit 0); installed release,
+  native libraries, YAML, service and model artifacts untouched.
+- Work remains IN_PROGRESS; no overall qualification or MoE inference claim.
+
+- Combined regression PASS: `LD_LIBRARY_PATH=/home/danny/.marina/lib cargo test
+  -j 2 -p oid-runtime -p oid-console -p oid-llama-cpp-sys --lib --bin talvik
+  --bin talvikd` outside sandbox for loopback fixtures. Runtime 68 passed,
+  native 22 passed (8 opt-in ignored), CLI 18 passed, daemon 54 passed.
+  Formatting and strict Clippy with the same packages and --lib --bins --tests
+  PASS after all changes. No workspace-wide or new release installation claim.

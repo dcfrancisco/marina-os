@@ -14,6 +14,7 @@ pub(crate) struct DiscoveryFacts {
     embedding_length: Option<u64>,
     expert_metadata_present: bool,
     alignment: Option<u64>,
+    attention: HashMap<String, u64>,
 }
 
 // llama.cpp's GGUF general.file_type identifies the dominant tensor format;
@@ -118,6 +119,7 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
     read_metadata(&mut reader).map(|(facts, _)| facts)
 }
 
+#[allow(clippy::too_many_lines)]
 fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
     let mut magic = [0; 4];
     reader.read_exact(&mut magic)?;
@@ -148,6 +150,7 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
         let kind = u32::try_from(number(&mut reader, 4)?).unwrap_or(u32::MAX);
         let data = value(&mut reader, kind)?;
         if (key == "general.architecture" && kind == 8)
+            || (key.contains(".attention.") && matches!(kind, 0 | 2 | 4 | 10))
             || key == "general.alignment"
             || (key == "general.file_type" && kind == 4)
             || (key.ends_with(".context_length") && matches!(kind, 0 | 2 | 4 | 10))
@@ -196,6 +199,10 @@ fn read_metadata<R: Read>(mut reader: R) -> io::Result<(DiscoveryFacts, u64)> {
     );
     Ok((
         DiscoveryFacts {
+            attention: entries
+                .iter()
+                .filter_map(|(key, value)| value.as_deref()?.parse().ok().map(|n| (key.clone(), n)))
+                .collect(),
             alignment: match entries.iter().find(|(key, _)| key == "general.alignment") {
                 None => Some(32),
                 Some((_, value)) => value
@@ -287,21 +294,73 @@ fn read_tensor_headers(
     Ok((facts, tensors, header_end, file_len))
 }
 
+pub(crate) fn kv_bytes_per_token(path: &Path) -> io::Result<Option<u64>> {
+    let facts = inspect(path)?;
+    Ok(estimate_kv(&facts))
+}
+
+// Full-attention F16 K/V only. Hybrid, recurrent and sliding-window layouts
+// require their own allocation model and intentionally remain unknown.
+fn estimate_kv(facts: &DiscoveryFacts) -> Option<u64> {
+    let arch = facts.architecture.as_deref()?;
+    if !matches!(arch, "qwen2" | "llama") {
+        return None;
+    }
+    let get = |suffix: &str| {
+        facts
+            .attention
+            .get(&format!("{arch}.attention.{suffix}"))
+            .copied()
+            .filter(|n| *n > 0)
+    };
+    let heads = get("head_count")?;
+    let kv_heads = get("head_count_kv")?;
+    if kv_heads > heads {
+        return None;
+    }
+    let embedding = facts.embedding_length?;
+    if embedding == 0 || embedding % heads != 0 {
+        return None;
+    }
+    let key = get("key_length").unwrap_or(embedding / heads);
+    let value = get("value_length").unwrap_or(embedding / heads);
+    key.checked_add(value)?
+        .checked_mul(kv_heads)?
+        .checked_mul(facts.block_count?.checked_mul(2)?)
+}
+
 /// Sizes from the pinned ggml type definitions; unsupported types stay unknown.
 fn tensor_block(kind: u32) -> Option<(u64, u64)> {
+    // ggml.h and ggml-common.h at e4b6c8ca; checked against installed ggml type metadata.
     match kind {
-        0 => Some((1, 4)),
-        1 | 30 => Some((1, 2)),
-        2 => Some((32, 18)),
+        0 | 26 => Some((1, 4)),
+        1 | 25 | 30 => Some((1, 2)),
+        2 | 20 => Some((32, 18)),
         3 => Some((32, 20)),
         6 => Some((32, 22)),
         7 => Some((32, 24)),
         8 => Some((32, 34)),
+        9 => Some((32, 36)),
         10 => Some((256, 84)),
-        11 => Some((256, 110)),
+        11 | 21 => Some((256, 110)),
         12 => Some((256, 144)),
         13 => Some((256, 176)),
         14 => Some((256, 210)),
+        15 => Some((256, 292)),
+        16 | 35 => Some((256, 66)),
+        17 => Some((256, 74)),
+        18 => Some((256, 98)),
+        19 => Some((256, 50)),
+        22 => Some((256, 82)),
+        23 => Some((256, 136)),
+        24 | 43 => Some((1, 1)),
+        27 | 28 => Some((1, 8)),
+        29 => Some((256, 56)),
+        34 => Some((256, 54)),
+        39 => Some((32, 17)),
+        40 => Some((64, 36)),
+        41 => Some((128, 18)),
+        42 => Some((64, 18)),
         _ => None,
     }
 }
@@ -713,6 +772,41 @@ mod tests {
         );
         assert!(check(&[("huge", &[u64::MAX][..], 0, 0)], 32).is_err());
         std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn all_pinned_types_have_storage_sizes_and_removed_types_stay_unknown() {
+        for kind in (0..44).filter(|k| ![4, 5, 31, 32, 33, 36, 37, 38].contains(k)) {
+            assert!(super::tensor_block(kind).is_some(), "type {kind}");
+        }
+        for kind in [4, 5, 31, 32, 33, 36, 37, 38, 44, u32::MAX] {
+            assert_eq!(super::tensor_block(kind), None);
+        }
+        assert_eq!(super::tensor_block(16), Some((256, 66)));
+        assert_eq!(super::tensor_block(34), Some((256, 54)));
+        assert_eq!(super::tensor_block(40), Some((64, 36)));
+    }
+
+    #[test]
+    fn kv_estimate_requires_supported_consistent_attention_metadata() {
+        let mut facts = super::DiscoveryFacts {
+            architecture: Some("qwen2".into()),
+            block_count: Some(24),
+            embedding_length: Some(896),
+            ..Default::default()
+        };
+        facts
+            .attention
+            .insert("qwen2.attention.head_count".into(), 14);
+        assert_eq!(super::estimate_kv(&facts), None);
+        facts
+            .attention
+            .insert("qwen2.attention.head_count_kv".into(), 2);
+        assert_eq!(super::estimate_kv(&facts), Some(12288));
+        facts.block_count = Some(u64::MAX);
+        assert_eq!(super::estimate_kv(&facts), None);
+        facts.architecture = Some("gemma4".into());
+        assert_eq!(super::estimate_kv(&facts), None);
     }
 
     fn expert_fixture(

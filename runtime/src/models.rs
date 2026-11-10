@@ -57,6 +57,15 @@ pub fn inspect_artifact_storage(path: &Path) -> std::io::Result<GgufStorageInfo>
     crate::gguf::inspect_storage(path)
 }
 
+/// Estimate F16 attention KV payload bytes per context token for supported
+/// full-attention architectures. Excludes allocator padding and scratch space.
+///
+/// # Errors
+/// Returns an error when bounded GGUF metadata inspection fails.
+pub fn estimate_artifact_kv_bytes_per_token(path: &Path) -> std::io::Result<Option<u64>> {
+    crate::gguf::kv_bytes_per_token(path)
+}
+
 /// Classify bounded GGUF metadata and tensor-header evidence without loading.
 ///
 /// Valid expert declarations classify other architectures. Gemma 4 additionally
