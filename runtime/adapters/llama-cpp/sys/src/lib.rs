@@ -2212,6 +2212,35 @@ impl NativeModel {
 mod tests {
     #[cfg(all(native_llama_cpp, target_pointer_width = "64"))]
     #[test]
+    #[ignore = "requires MARINA_TEST_GGUF; bounded native cancellation lifecycle"]
+    fn bounded_native_cancellation_recovers_with_a_fresh_context() {
+        let path = std::env::var("MARINA_TEST_GGUF").expect("local GGUF fixture");
+        super::initialize().unwrap();
+        let model = super::load_model(&path, None, super::cpu_load_options()).unwrap();
+        let cancellation = std::sync::atomic::AtomicBool::new(false);
+        let run = |accept| {
+            model.generate_stream(
+                "Hi",
+                128,
+                1,
+                0.0,
+                0.95,
+                40,
+                42,
+                &[],
+                |_| accept,
+                &cancellation,
+            )
+        };
+        assert!(!run(true).unwrap().cache_hit);
+        assert!(run(false).is_err());
+        assert!(!run(true).unwrap().cache_hit);
+        model.reset_context().unwrap();
+        drop(model);
+        super::shutdown();
+    }
+
+    #[test]
     fn context_params_match_verified_native_layout() {
         use super::ContextParams;
         // Compared with sizeof/offsetof from the installed build's llama.h.

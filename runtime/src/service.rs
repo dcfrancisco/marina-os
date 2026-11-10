@@ -490,7 +490,9 @@ fn context_reservation(context_size: u32, kv_rate: Option<u64>) -> Result<u64, R
     let rate = kv_rate
         .unwrap_or(KV_BYTES_PER_CONTEXT_TOKEN)
         .max(KV_BYTES_PER_CONTEXT_TOKEN);
-    u64::from(context_size)
+    // Native attention cache rounds small contexts to 256-token units.
+    let padded_tokens = u64::from(context_size).div_ceil(256) * 256;
+    padded_tokens
         .checked_mul(rate)
         .ok_or_else(|| RuntimeError::ModelLifecycle("context memory estimate overflow".to_owned()))
 }
@@ -1465,12 +1467,17 @@ mod tests {
             512 * 32768
         );
         assert!(super::context_reservation(2, Some(u64::MAX)).is_err());
+        assert_eq!(super::context_reservation(1, None).unwrap(), 256 * 16384);
         let policy = ResourcePolicy {
             safety_margin_bytes: 0,
             ..ResourcePolicy::default()
         };
-        assert!(super::admit_memory_with_kv(Some(32768), 0, 0, 1, Some(32768), &policy).is_ok());
-        assert!(super::admit_memory_with_kv(Some(32767), 0, 0, 1, Some(32768), &policy).is_err());
+        assert!(
+            super::admit_memory_with_kv(Some(8_388_608), 0, 0, 256, Some(32768), &policy).is_ok()
+        );
+        assert!(
+            super::admit_memory_with_kv(Some(8_388_607), 0, 0, 256, Some(32768), &policy).is_err()
+        );
     }
 
     #[test]

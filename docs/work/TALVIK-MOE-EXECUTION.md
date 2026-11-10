@@ -10,10 +10,10 @@ existing contracts and the Phenom CPU baseline. Branch:
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma 4 dense header classification verified against the matching installed CPU build; real MoE inference remains unqualified. |
 | WP-03 | IN_PROGRESS | WP-01; parameter and memory accounting with explicit unknowns | Checked on-disk tensor accounting and known-type extents implemented; unsupported types remain unknown, runtime estimates and broader type coverage remain. |
 | WP-04 | IN_PROGRESS | Inspect pinned backend and qualify supported placement | Pinned source and adapter placement inspected; installed CPU-only build verified. GPU placement and real MoE execution remain unqualified. |
-| WP-05 | PENDING | WP-01/03; architecture-aware KV estimate and lifecycle tests | Current fixed per-token allowance is a heuristic. |
-| WP-06 | PENDING | WP-01/03/04; hardware-aware suitability | Existing hardware detection is partial. |
-| WP-07 | PENDING | WP-03/04; bounded reproducible benchmark | No Gemma inference measurement yet. |
-| WP-08 | PENDING | WP-01/03/06; compatible IPC diagnostics and security | Existing authenticated profile extended in `479d05a`. |
+| WP-05 | IN_PROGRESS | WP-01/03; architecture-aware KV estimate and lifecycle tests | Architecture-aware F16 estimates integrated with conservative admission floor; actual allocation unavailable in pinned public API. |
+| WP-06 | IN_PROGRESS | WP-01/03/04; hardware-aware suitability | Conservative RAM suitability and optional HTTP diagnostics implemented; backend compatibility remains independently unknown. |
+| WP-07 | IN_PROGRESS | WP-03/04; bounded reproducible benchmark | Bounded Qwen new/warm prompt metrics recorded; cold native context benchmark bounded separately. |
+| WP-08 | IN_PROGRESS | WP-01/03/06; compatible IPC diagnostics and security | Existing authenticated profile extended in `479d05a`. |
 | WP-09 | PENDING | Relevant work packages; regression and packaging evidence | Runtime 65, CLI 18, daemon 53 and native 21 unit tests pass; default-policy native acceptance passes in debug and release. Workspace qualification outstanding. |
 | WP-10 | IN_PROGRESS | Safe independent work and reproducible evidence workflow | Baseline documents Git workflow; unattended invocation below. |
 
@@ -65,11 +65,14 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Build repository talvik/talvikd with required native linkage and
-run the isolated default-model acceptance --report against Qwen after the admission
-integration. Add a native cancellation/prefix-reuse acceptance run with the local
-Qwen fixture. Then finish authenticated suitability diagnostics tests, packaging
-checks and cold-context benchmarking. Preserve installed release and configuration.
+NEXT ACTION: Build required-native release binaries with `LLAMA_CPP_LIB_DIR`,
+`LLAMA_CPP_REQUIRED=1`, `LLAMA_CPP_MTMD_REQUIRED=1`, and
+`LLAMA_CPP_CHAT_TEMPLATE_REQUIRED=1`; run default acceptance with --bin-dir
+target/release and bounded --report. Do not install. Then qualify authenticated
+live suitability diagnostics on a disposable daemon and remaining package formats.
+Full context-growth native test exceeded 180s; use the separate bounded native
+cancellation test for lifecycle acceptance and reduce/split growth fixtures before
+another full benchmark. Preserve installed Qwen release and model artifacts.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -329,3 +332,46 @@ Continuation after 2afb643 — architecture-aware admission and suitability:
   Repacking and retained native contexts remain outside this estimate.
 - Strict runtime/console Clippy and formatting PASS. Installed Qwen smoke PASS
   (OK., exit 0) without restart or installation. No MarinaOS image changes.
+
+
+5cbad06 acceptance and suitability follow-up:
+
+- Combined regression PASS: runtime 71 tests, native 22 (8 opt-in ignored),
+  CLI 18 and daemon 54. New HTTP suitability fixture PASS with missing hardware
+  and unknown backend compatibility. Strict runtime/console Clippy and fmt PASS.
+- Required-native debug build PASS using the documented four LLAMA_CPP flags.
+  Isolated default-model acceptance with --report PASS against 5cbad06 binaries.
+  Report `/tmp/talvik-moe-qwen-admission-benchmark.json`: Qwen checksum unchanged,
+  two CPU threads, context 512, 35 prompt tokens and 8 generated tokens each.
+  New prompt: 3156 ms TTFT, 3.60702 generation tokens/s, 24 reused tokens.
+  Warm prompt: 316 ms TTFT, 3.56242 generation tokens/s, 34 reused tokens.
+  Both are resident-weight measurements; model load time and peak memory remain
+  unknown. Prefix reuse prevents labeling the first request a cold-cache run.
+- `python3 scripts/test-talvik-installers.py`: PASS 7 temporary-fixture tests.
+  Actual DEB/RPM/archive installation and cross-platform execution NOT RUN.
+- Native opt-in prefix/context test attempted with local Qwen, TALVIK_THREADS=2,
+  timeout 90s. Cold context baseline requests observed 9124 and 10033 ms TTFT;
+  no throughput inference is drawn from these single-token requests. Record the
+  final native test result before marking its cancellation/recovery acceptance.
+
+- Debug Unix archive packaging PASS for 5cbad06 with installed native payload;
+  artifact `/tmp/talvik-5cbad06-debug-qualification.tar.gz`, SHA-256
+  `8c5d2c8ec9c33a4ace8eb9e551ab9febfbe78251d032d470f3bc4d36646c6776`.
+  Build-info identifies clean 5cbad06 debug. This does not qualify a release.
+  No archive installed. Pinned public llama.h exposes llama_get_memory but no
+  public KV-allocation byte measurement; diagnostics keep actual KV bytes unknown.
+
+- Full native prefix/context-growth test timed out at 90s and 180s (exit 124).
+  Prefix reuse assertions ran successfully, but full growth acceptance is NOT
+  PASS. Log `/tmp/talvik-native-context-qualification.log` preserves the attempt.
+- Added separate opt-in `tests::bounded_native_cancellation_recovers_with_a_fresh_context`.
+  PASS in 16.66s with local Qwen, two threads, timeout 60s: first generation,
+  callback cancellation, recovery with no stale cache, explicit reset and drop.
+  Command: MARINA_TEST_GGUF=<Qwen path> TALVIK_THREADS=2
+  LD_LIBRARY_PATH=/home/danny/.marina/lib timeout 60s cargo test -j 2
+  -p oid-llama-cpp-sys --lib
+  tests::bounded_native_cancellation_recovers_with_a_fresh_context -- --ignored --exact.
+  Log `/tmp/talvik-native-cancellation-qualification.log`.
+- Native logs confirmed attention context padding; admission now rounds token
+  reservations up to 256-token units, retaining the per-token floor. Added
+  small-context regression. Hardware suitability estimate remains approximate.

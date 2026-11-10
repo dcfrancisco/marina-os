@@ -4594,6 +4594,12 @@ mod tests {
         assert_eq!(result["status"], "validated");
         assert_eq!(result["tensor_payload_bytes"], 18);
         assert_eq!(result["total_parameters"], 32);
+        let fit = super::suitability_json(
+            path.to_str().unwrap(),
+            &oid_runtime::HardwareSnapshot::default(),
+        );
+        assert_eq!(fit["status"], "unknown");
+        assert!(fit["backend_compatibility"].is_null());
         assert!(result["active_parameters"].is_null());
         assert!(result["estimated_resident_weights_bytes"].is_null());
         std::fs::write(&path, b"GGUF").unwrap();
