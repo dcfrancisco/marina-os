@@ -918,7 +918,7 @@ impl ModelDiscovery {
                         .to_owned(),
                     family: facts.architecture.unwrap_or_else(|| "unknown".to_owned()),
                     backend: backend.to_owned(),
-                    quantization: "unknown".to_owned(),
+                    quantization: facts.quantization.unwrap_or("unknown").to_owned(),
                     context_window: facts.context.unwrap_or(0),
                     memory_requirement_mb: bytes.div_ceil(1_048_576),
                     capabilities: vec!["text".to_owned()],

@@ -8,6 +8,51 @@ use std::path::Path;
 pub(crate) struct DiscoveryFacts {
     pub architecture: Option<String>,
     pub context: Option<u64>,
+    pub quantization: Option<&'static str>,
+}
+
+// llama.cpp's GGUF general.file_type identifies the dominant tensor format;
+// individual tensors may use different types.
+fn file_type(value: u64) -> Option<&'static str> {
+    match value {
+        0 => Some("F32"),
+        1 => Some("F16"),
+        2 => Some("Q4_0"),
+        3 => Some("Q4_1"),
+        7 => Some("Q8_0"),
+        8 => Some("Q5_0"),
+        9 => Some("Q5_1"),
+        10 => Some("Q2_K"),
+        11 => Some("Q3_K_S"),
+        12 => Some("Q3_K_M"),
+        13 => Some("Q3_K_L"),
+        14 => Some("Q4_K_S"),
+        15 => Some("Q4_K_M"),
+        16 => Some("Q5_K_S"),
+        17 => Some("Q5_K_M"),
+        18 => Some("Q6_K"),
+        19 => Some("IQ2_XXS"),
+        20 => Some("IQ2_XS"),
+        21 => Some("Q2_K_S"),
+        22 => Some("IQ3_XS"),
+        23 => Some("IQ3_XXS"),
+        24 => Some("IQ1_S"),
+        25 => Some("IQ4_NL"),
+        26 => Some("IQ3_S"),
+        27 => Some("IQ3_M"),
+        28 => Some("IQ2_S"),
+        29 => Some("IQ2_M"),
+        30 => Some("IQ4_XS"),
+        31 => Some("IQ1_M"),
+        32 => Some("BF16"),
+        36 => Some("TQ1_0"),
+        37 => Some("TQ2_0"),
+        38 => Some("MXFP4_MOE"),
+        39 => Some("NVFP4"),
+        40 => Some("Q1_0"),
+        41 => Some("Q2_0"),
+        _ => None,
+    }
 }
 
 fn number<R: Read>(reader: &mut R, bytes: usize) -> io::Result<u64> {
@@ -94,6 +139,7 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
         let kind = u32::try_from(number(&mut reader, 4)?).unwrap_or(u32::MAX);
         let data = value(&mut reader, kind)?;
         if (key == "general.architecture" && kind == 8)
+            || (key == "general.file_type" && kind == 4)
             || (key.ends_with(".context_length") && matches!(kind, 0 | 2 | 4 | 10))
         {
             entries.push((key, data));
@@ -117,12 +163,26 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
     Ok(DiscoveryFacts {
         architecture,
         context,
+        quantization: entries
+            .iter()
+            .find(|(key, _)| key == "general.file_type")
+            .and_then(|(_, v)| v.as_ref())
+            .and_then(|v| v.parse::<u64>().ok())
+            .and_then(file_type),
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::inspect;
+    use super::{file_type, inspect};
+
+    #[test]
+    fn known_file_types_are_distinct_from_unknown_values() {
+        assert_eq!(file_type(2), Some("Q4_0"));
+        assert_eq!(file_type(15), Some("Q4_K_M"));
+        assert_eq!(file_type(1024), None);
+        assert_eq!(file_type(4), None);
+    }
 
     fn text(out: &mut Vec<u8>, value: &str) {
         out.extend_from_slice(&(value.len() as u64).to_le_bytes());
@@ -135,17 +195,21 @@ mod tests {
         let mut bytes = b"GGUF".to_vec();
         bytes.extend_from_slice(&3_u32.to_le_bytes());
         bytes.extend_from_slice(&0_u64.to_le_bytes());
-        bytes.extend_from_slice(&2_u64.to_le_bytes());
+        bytes.extend_from_slice(&3_u64.to_le_bytes());
         text(&mut bytes, "general.architecture");
         bytes.extend_from_slice(&8_u32.to_le_bytes());
         text(&mut bytes, "qwen2");
         text(&mut bytes, "qwen2.context_length");
         bytes.extend_from_slice(&4_u32.to_le_bytes());
         bytes.extend_from_slice(&4096_u32.to_le_bytes());
+        text(&mut bytes, "general.file_type");
+        bytes.extend_from_slice(&4_u32.to_le_bytes());
+        bytes.extend_from_slice(&2_u32.to_le_bytes());
         std::fs::write(&path, &bytes).unwrap();
         let facts = inspect(&path).unwrap();
         assert_eq!(facts.architecture.as_deref(), Some("qwen2"));
         assert_eq!(facts.context, Some(4096));
+        assert_eq!(facts.quantization, Some("Q4_0"));
         bytes.pop();
         std::fs::write(&path, bytes).unwrap();
         assert!(inspect(&path).is_err());

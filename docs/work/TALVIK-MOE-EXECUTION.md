@@ -6,7 +6,7 @@ existing contracts and the Phenom CPU baseline. Branch:
 
 | ID | Status | Dependencies and acceptance criteria | Evidence / blocker |
 | --- | --- | --- | --- |
-| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context only. |
+| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Declared dominant quantization now parsed; expert discovery remains. |
 | WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma classification unverified. |
 | WP-03 | PENDING | WP-01; parameter and memory accounting with explicit unknowns | No validated tensor accounting yet. |
 | WP-04 | PENDING | Inspect pinned backend and qualify supported placement | Existing CPU and GPU-layer controls need qualification. |
@@ -16,6 +16,11 @@ existing contracts and the Phenom CPU baseline. Branch:
 | WP-08 | PENDING | WP-01/03/06; compatible IPC diagnostics and security | Existing authenticated profile extended in `479d05a`. |
 | WP-09 | PENDING | Relevant work packages; regression and packaging evidence | Prior narrow tests in baseline; workspace qualification outstanding. |
 | WP-10 | IN_PROGRESS | Safe independent work and reproducible evidence workflow | Baseline documents Git workflow; unattended invocation below. |
+
+Runtime library tests: 60 passed with loopback access; the sandboxed run had
+59 passed and one failed because its HTTP fixture could not bind. GGUF-focused
+tests passed (5); `cargo clippy -p oid-runtime --lib -- -D warnings` passed
+with the local native library on the loader path.
 
 NEXT ACTION: Complete bounded GGUF metadata and tensor inspection, expose expert
 facts without changing the registry format, and qualify the installed native
