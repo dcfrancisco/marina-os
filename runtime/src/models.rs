@@ -906,6 +906,9 @@ impl ModelDiscovery {
                     .metadata()
                     .map(|metadata| metadata.len())
                     .unwrap_or_default();
+                // Invalid or oversized metadata does not prevent discovery of
+                // other artifacts; the backend remains the authority on load.
+                let facts = crate::gguf::inspect(&path).unwrap_or_default();
                 let model = ModelMetadata {
                     id: id.clone(),
                     name: path
@@ -913,10 +916,10 @@ impl ModelDiscovery {
                         .and_then(|name| name.to_str())
                         .unwrap_or(&id)
                         .to_owned(),
-                    family: "unknown".to_owned(),
+                    family: facts.architecture.unwrap_or_else(|| "unknown".to_owned()),
                     backend: backend.to_owned(),
                     quantization: "unknown".to_owned(),
-                    context_window: 0,
+                    context_window: facts.context.unwrap_or(0),
                     memory_requirement_mb: bytes.div_ceil(1_048_576),
                     capabilities: vec!["text".to_owned()],
                     status: ModelStatus::Registered,

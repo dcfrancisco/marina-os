@@ -13,6 +13,7 @@ pub mod backends;
 pub mod config;
 pub mod core;
 pub mod generation;
+mod gguf;
 pub mod hardware;
 pub mod lifecycle;
 pub mod logging;
