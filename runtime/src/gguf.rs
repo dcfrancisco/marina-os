@@ -9,6 +9,7 @@ pub(crate) struct DiscoveryFacts {
     pub architecture: Option<String>,
     pub context: Option<u64>,
     pub quantization: Option<&'static str>,
+    pub experts: Option<oid_model_runner::ExpertInfo>,
 }
 
 // llama.cpp's GGUF general.file_type identifies the dominant tensor format;
@@ -141,7 +142,16 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
         if (key == "general.architecture" && kind == 8)
             || (key == "general.file_type" && kind == 4)
             || (key.ends_with(".context_length") && matches!(kind, 0 | 2 | 4 | 10))
+            || key.ends_with(".expert_count")
+            || key.ends_with(".expert_used_count")
         {
+            let data = if (key.ends_with(".expert_count") || key.ends_with(".expert_used_count"))
+                && !matches!(kind, 0 | 2 | 4 | 10)
+            {
+                Some(String::new())
+            } else {
+                data
+            };
             entries.push((key, data));
         }
     }
@@ -160,9 +170,22 @@ pub(crate) fn inspect(path: &Path) -> io::Result<DiscoveryFacts> {
         .and_then(|(_, v)| v.as_ref())
         .and_then(|v| v.parse::<u64>().ok())
         .filter(|v| *v > 0);
+    let expert_value = |suffix: &str| {
+        architecture.as_ref().and_then(|arch| {
+            entries
+                .iter()
+                .find(|(key, _)| key == &format!("{arch}.{suffix}"))
+                .and_then(|(_, value)| value.as_deref())
+        })
+    };
+    let experts = oid_model_runner::ExpertInfo::from_metadata(
+        expert_value("expert_count"),
+        expert_value("expert_used_count"),
+    );
     Ok(DiscoveryFacts {
         architecture,
         context,
+        experts: Some(experts),
         quantization: entries
             .iter()
             .find(|(key, _)| key == "general.file_type")
@@ -239,6 +262,52 @@ mod tests {
         bytes.extend_from_slice(&0_u64.to_le_bytes());
         std::fs::write(&path, &bytes).unwrap();
         assert!(inspect(&path).is_err());
+        std::fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn expert_metadata_is_architecture_scoped_and_conservative() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-gguf-experts-{}.gguf", std::process::id()));
+        let mut bytes = b"GGUF".to_vec();
+        bytes.extend_from_slice(&3_u32.to_le_bytes());
+        bytes.extend_from_slice(&0_u64.to_le_bytes());
+        bytes.extend_from_slice(&4_u64.to_le_bytes());
+        for (key, n) in [
+            ("other.expert_count", 0_u32),
+            ("test.expert_count", 8),
+            ("test.expert_used_count", 2),
+        ] {
+            text(&mut bytes, key);
+            bytes.extend_from_slice(&4_u32.to_le_bytes());
+            bytes.extend_from_slice(&n.to_le_bytes());
+        }
+        text(&mut bytes, "general.architecture");
+        bytes.extend_from_slice(&8_u32.to_le_bytes());
+        text(&mut bytes, "test");
+        std::fs::write(&path, &bytes).unwrap();
+        let info = crate::models::inspect_artifact_experts(&path).unwrap();
+        assert_eq!(
+            (info.kind, info.expert_count, info.experts_per_token),
+            ("moe", Some(8), Some(2))
+        );
+
+        // A string-typed count is invalid even if its text looks numeric.
+        let mut malformed = b"GGUF".to_vec();
+        malformed.extend_from_slice(&3_u32.to_le_bytes());
+        malformed.extend_from_slice(&0_u64.to_le_bytes());
+        malformed.extend_from_slice(&2_u64.to_le_bytes());
+        text(&mut malformed, "general.architecture");
+        malformed.extend_from_slice(&8_u32.to_le_bytes());
+        text(&mut malformed, "test");
+        text(&mut malformed, "test.expert_count");
+        malformed.extend_from_slice(&8_u32.to_le_bytes());
+        text(&mut malformed, "8");
+        std::fs::write(&path, malformed).unwrap();
+        assert_eq!(
+            crate::models::inspect_artifact_experts(&path).unwrap().kind,
+            "unknown"
+        );
         std::fs::remove_file(path).unwrap();
     }
 }

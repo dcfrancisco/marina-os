@@ -8,6 +8,19 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
+/// Inspect declared expert routing metadata without loading the model.
+///
+/// Missing or inconsistent declarations remain unknown; tensor contents are
+/// not inspected and no claim is made about backend support.
+///
+/// # Errors
+/// Returns an error if the artifact cannot be read as bounded GGUF metadata.
+pub fn inspect_artifact_experts(path: &Path) -> std::io::Result<oid_model_runner::ExpertInfo> {
+    Ok(crate::gguf::inspect(path)?
+        .experts
+        .unwrap_or_else(|| oid_model_runner::ExpertInfo::from_metadata(None, None)))
+}
+
 /// Model lifecycle status represented by metadata only.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ModelStatus {
