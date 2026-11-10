@@ -267,3 +267,39 @@ persistent process. Host session limits still apply.
   native 22 passed (8 opt-in ignored), CLI 18 passed, daemon 54 passed.
   Formatting and strict Clippy with the same packages and --lib --bins --tests
   PASS after all changes. No workspace-wide or new release installation claim.
+
+
+Continuation evidence after 80bdf8b:
+
+- Repository binaries built with `LLAMA_CPP_LIB_DIR=/home/danny/.marina/lib`,
+  `LLAMA_CPP_REQUIRED=1`, `LLAMA_CPP_MTMD_REQUIRED=1`,
+  `LLAMA_CPP_CHAT_TEMPLATE_REQUIRED=1`, `cargo build -j 2 -p oid-console
+  --bin talvik --bin talvikd`: PASS. No installation performed.
+- Existing isolated default acceptance PASS against these debug binaries:
+  `LD_LIBRARY_PATH=/home/danny/.marina/lib python3
+  scripts/test-talvik-default-model.py --model
+  /home/danny/.marina/models/qwen2.5-0.5b-instruct-q4_k_m.gguf`.
+- WP-07 extends that existing harness with optional --report, two eight-token
+  requests at 512 context/two CPU threads, retaining returned metrics and usage.
+  Cold means new prompt with resident weights; load duration and peak memory
+  remain explicitly unavailable. This is not a cold model-load benchmark.
+- WP-10 workflow: use a distinct feature branch and git worktree per worker,
+  set a distinct CARGO_TARGET_DIR outside the shared build tree, keep native
+  dependencies pinned, commit only the assigned write set and review each
+  commit before integration. Run narrow evidence commands before integration;
+  never run interactive and unattended workers in this checkout concurrently.
+- Exact hardware/model blockers: installed backend is CPU-only, so actual GPU
+  execution/offloaded layer counts require another suitable accelerator build
+  and device. Available local Gemma evidence is dense; no confirmed local MoE
+  fixture is available. Actual MoE load/generation remains BLOCKED pending an
+  explicitly supplied compatible local MoE artifact. No download attempted.
+
+- Bounded Qwen report PASS at /tmp/talvik-moe-qwen-benchmark.json using debug
+  80bdf8b native binaries. Both requests generated 8 tokens from 35 prompt
+  tokens. New-prompt phase: TTFT 3350 ms, generation 3.13475 tokens/s, 24
+  reused tokens. Warm phase: TTFT 364 ms, generation 3.40315 tokens/s, 34
+  reused tokens. The first phase reused template prefix, so it is NOT a cold
+  cache measurement; the harness labels it new_prompt going forward. Cold load,
+  peak memory, and model load duration remain NOT MEASURED. No MoE inference.
+- Additional malformed alignment fixture PASS (zero, non-power-of-two,
+  wrong metadata type). GGUF filter now 11 passed, one ignored.

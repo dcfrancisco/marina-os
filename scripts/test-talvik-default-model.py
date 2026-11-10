@@ -6,6 +6,8 @@ synthetic large-model entry is invalid and must never be chosen as fallback.
 """
 import argparse
 import contextlib
+import hashlib
+import platform
 import json
 import os
 from pathlib import Path
@@ -87,7 +89,9 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--model", type=Path, required=True, help="existing small local GGUF")
     parser.add_argument("--bin-dir", type=Path, default=Path("target/debug"))
+    parser.add_argument("--report", type=Path, help="write bounded cold/warm benchmark evidence")
     args = parser.parse_args()
+    measurements = []
     model = args.model.resolve(strict=True)
     binary = (args.bin_dir / "talvikd").resolve(strict=True)
     client = (args.bin_dir / "talvik").resolve(strict=True)
@@ -108,6 +112,15 @@ def main():
                 code, result = request(base, "/v1/completions", {
                     "model": "small", "prompt": "Hello", "max_tokens": 2, "context_size": 512})
                 assert code == 200 and result["model"] == "small", result
+                if _ == 0 and args.report:
+                    for phase in ("new_prompt", "warm_prompt"):
+                        started = time.monotonic()
+                        status, measured = request(base, "/v1/completions", {
+                            "model": "small", "prompt": "Count from one to eight.",
+                            "max_tokens": 8, "context_size": 512, "temperature": 0})
+                        assert status == 200, measured
+                        measurements.append({"phase": phase, "wall_seconds": time.monotonic()-started,
+                                             "usage": measured.get("usage"), "metrics": measured.get("metrics")})
                 if _ == 0:
                     default_run = subprocess.run([str(client), "--plain", "run", "--default", "Reply only OK."],
                                                  env=env, capture_output=True, text=True, timeout=30)
@@ -136,6 +149,18 @@ def main():
                                         env=env, capture_output=True, text=True, timeout=15)
                 assert result.returncode != 0 and selected in result.stderr, result
                 assert not any(m["resident"] for m in models(base))
+    if args.report:
+        with model.open("rb") as artifact:
+            digest = hashlib.file_digest(artifact, "sha256").hexdigest()
+        args.report.write_text(json.dumps({
+            "model": model.name, "sha256": digest, "cpu": platform.processor() or None,
+            "architecture": platform.machine(), "context_length": 512, "threads": 2,
+            "backend": "llama.cpp CPU", "binary": str(binary),
+            "binary_version": subprocess.check_output([str(binary), "--version"], text=True).strip(),
+            "model_load_duration_ms": None, "observed_peak_memory_bytes": None,
+            "cold_definition": "not measured; new_prompt can reuse shared template prefix",
+            "moe_qualification": "not run", "measurements": measurements
+        }, indent=2)+"\n")
     print("PASS: YAML default, restart, inference, explicit CLI/API selection, environment override, opt-out, missing/incompatible diagnostics; no large-model fallback")
 
 

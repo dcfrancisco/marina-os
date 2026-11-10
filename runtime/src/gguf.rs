@@ -809,6 +809,25 @@ mod tests {
         assert_eq!(super::estimate_kv(&facts), None);
     }
 
+    #[test]
+    fn storage_rejects_invalid_alignment_metadata() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-alignment-{}.gguf", std::process::id()));
+        for (kind, alignment) in [(4_u32, 0_u32), (4, 3), (5, 32)] {
+            let mut bytes = b"GGUF".to_vec();
+            bytes.extend_from_slice(&3_u32.to_le_bytes());
+            bytes.extend_from_slice(&0_u64.to_le_bytes());
+            bytes.extend_from_slice(&1_u64.to_le_bytes());
+            text(&mut bytes, "general.alignment");
+            bytes.extend_from_slice(&kind.to_le_bytes());
+            bytes.extend_from_slice(&alignment.to_le_bytes());
+            bytes.resize(128, 0);
+            std::fs::write(&path, bytes).unwrap();
+            assert!(crate::models::inspect_artifact_storage(&path).is_err());
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+
     fn expert_fixture(
         architecture: &str,
         metadata: &[(&str, u32, u64)],
