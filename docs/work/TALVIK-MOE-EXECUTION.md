@@ -4,18 +4,24 @@ Objective: implement and qualify hardware-aware Talvik inference while preservin
 existing contracts and the Phenom CPU baseline. Branch:
 `feature/talvik-moe-aware-inference`; integration baseline `39a809e`.
 
-| ID | Status | Dependencies and acceptance criteria | Evidence / blocker |
+Current handoff status as of 2026-11-11, source checkpoint `7c7d2d2`.
+The chronological evidence below includes superseded intermediate results;
+this table and NEXT ACTION describe the current queue. No overall MoE-aware
+inference qualification is claimed.
+
+| ID | Status | Current evidence | Remaining acceptance / blocker and next action |
 | --- | --- | --- | --- |
-| WP-01 | IN_PROGRESS | Bounded discovery of architecture, context, experts and quantization; malformed fixtures | `8d34aa6` supplies architecture and context; `02af2fb` hardens malformed metadata. Tensor descriptors inspected on one local Gemma artifact; data extents and broader artifact coverage remain unverified. |
-| WP-02 | IN_PROGRESS | Reliable dense/MoE/unknown classification and Gemma tensor/backend investigation | `479d05a` reports loaded expert metadata conservatively. Gemma 4 dense header classification verified against the matching installed CPU build; real MoE inference remains unqualified. |
-| WP-03 | IN_PROGRESS | WP-01; parameter and memory accounting with explicit unknowns | Checked on-disk tensor accounting and known-type extents implemented; unsupported types remain unknown, runtime estimates and broader type coverage remain. |
-| WP-04 | IN_PROGRESS | Inspect pinned backend and qualify supported placement | Pinned source and adapter placement inspected; installed CPU-only build verified. GPU placement and real MoE execution remain unqualified. |
-| WP-05 | IN_PROGRESS | WP-01/03; architecture-aware KV estimate and lifecycle tests | Architecture-aware F16 estimates integrated with conservative admission floor; actual allocation unavailable in pinned public API. |
-| WP-06 | IN_PROGRESS | WP-01/03/04; hardware-aware suitability | Conservative RAM suitability and optional HTTP diagnostics implemented; backend compatibility remains independently unknown. |
-| WP-07 | IN_PROGRESS | WP-03/04; bounded reproducible benchmark | Bounded Qwen new/warm prompt metrics recorded; cold native context benchmark bounded separately. |
-| WP-08 | IN_PROGRESS | WP-01/03/06; compatible IPC diagnostics and security | Existing authenticated profile extended in `479d05a`. |
-| WP-09 | PENDING | Relevant work packages; regression and packaging evidence | Runtime 65, CLI 18, daemon 53 and native 21 unit tests pass; default-policy native acceptance passes in debug and release. Workspace qualification outstanding. |
-| WP-10 | IN_PROGRESS | Safe independent work and reproducible evidence workflow | Baseline documents Git workflow; unattended invocation below. |
+| WP-01 | IN_PROGRESS | Bounded metadata/descriptors and malformed fixtures; Qwen and Gemma known-type data extents inspected without loading weights. | Reconcile broader architecture/artifact coverage and remaining malformed/aggregate-overflow cases; do not repeat completed extent work. |
+| WP-02 | IN_PROGRESS | Gemma 4 complete FFN evidence classifies the local artifact as dense; conservative unknowns and loaded expert metadata implemented. | Broader classification rules need source-backed fixtures. Actual MoE inference BLOCKED: no confirmed suitable local MoE artifact; require an explicitly supplied compatible artifact, then load/generate. |
+| WP-03 | IN_PROGRESS | All 36 active pinned GGML block sizes checked against installed library; Qwen/Gemma payload accounting and authenticated storage diagnostics pass. | Active parameters and resident-weight estimates remain unknown; reconcile required architecture-specific derivation and malformed cases. Unsupported/future types intentionally retain unknown extents; disk bytes do not establish RAM requirements. |
+| WP-04 | IN_PROGRESS | Installed CPU capabilities inspected; requested versus observed placement preserved; unverified accelerator use stays unknown. | GPU qualification BLOCKED by CPU-only practical environment/build. Require a suitable supported device/build for actual placement evidence; no speculative expert-offload controls. |
+| WP-05 | IN_PROGRESS | Qwen2/Llama F16 KV estimates feed load/generation admission with a 16 KiB/token floor and 256-token padding. Bounded native cancellation/recovery passes. | Full context-growth fixture timed out at 90/180s: split into bounded tests first. Other cache architectures remain unknown. Actual KV allocation bytes unavailable through pinned public API; retain explicit unknowns. |
+| WP-06 | IN_PROGRESS | Conservative RAM suitability function and HTTP diagnostics; supported/unsupported/unknown/constrained/overflow fixtures pass. | HTTP backend compatibility remains unknown; CPU/architecture compatibility and repacking/retained-context overhead need additional validated evidence before stronger suitability claims. |
+| WP-07 | IN_PROGRESS | Bounded Qwen debug/release new/warm prompt metrics recorded; clean release 0f041a7 at two threads measured 3.59–3.60 generation tokens/s. | Complete bounded cold/context-growth evidence; load duration, peak memory and CPU identity completeness remain outstanding in benchmark reports. MoE benchmark BLOCKED by missing confirmed local MoE artifact. |
+| WP-08 | IN_PROGRESS | Optional storage/suitability diagnostics preserve fields. 7c7d2d2 acceptance harness against 0f041a7 release binaries passes 401/403/read-scope, invalid input and unknown metadata checks; IPC unit regressions pass. | Finish acceptance reconciliation for cancellation/timeouts and older-client IPC against the final artifact; do not equate diagnostic acceptance with complete API qualification. |
+| WP-09 | IN_PROGRESS | Runtime 71 pass/1 ignored; CLI 18, daemon 54, native 22 regular tests pass. Bounded native cancellation separately passes. Strict Clippy/fmt, required-native debug/release default acceptance, seven installer fixtures, Unix archive and DEB builds pass. | Full native growth timed out; workspace-wide checks NOT RUN; package installation/upgrade NOT RUN. RPM SKIPPED (rpmbuild unavailable), macOS/Windows execution SKIPPED on Linux. Complete bounded regressions and remaining feasible packaging checks after splitting growth tests. |
+| WP-10 | IN_PROGRESS | Minimal separate-branch/worktree/build-directory workflow documented; no supervisor or orchestration changes. | Reconcile final acceptance and validate a future integration handoff before marking verified; do not launch concurrent workers in this checkout. |
+
 
 Runtime library tests: 60 passed with loopback access; the sandboxed run had
 59 passed and one failed because its HTTP fixture could not bind. GGUF-focused
@@ -65,13 +71,16 @@ its source revision. The local source checkout is at `18443257a30c884d5332abb8e7
 the Linux setup script defaults to `b12060`, which is not resolvable in that
 checkout. No matching installed-library provenance was found in this slice.
 
-NEXT ACTION: Split full native context-growth fixture into a bounded, independently
-addressable growth check, reducing its prompt size while preserving capacity-growth,
-isolation and deterministic cleanup assertions. Existing full fixture timed out at
-180s; bounded cancellation passes. Then reconcile remaining WP acceptance items,
-including active-parameter derivation and unsupported cache architectures, without
-claiming actual MoE/GPU qualification. Release default/authenticated diagnostics
-and Unix/DEB artifact builds now pass; never install over known-good Qwen casually.
+NEXT ACTION: Split the native context-growth qualification into bounded,
+independently addressable tests, then complete outstanding regression and packaging
+checks. Start from `tests::persistent_context_reuses_a_compatible_prompt_prefix`
+in runtime/adapters/llama-cpp/sys/src/lib.rs: isolate capacity growth, request
+isolation and cleanup assertions, and reduce prompts/iterations while preserving
+those assertions. Run narrow tests with two threads and explicit time limits;
+retain the passing bounded cancellation test. Then reconcile final IPC/cancellation
+regressions and feasible package artifact/upgrade checks using disposable state.
+Do not install over the known-good Qwen service, change libraries or acquire models.
+Actual MoE/GPU qualification requires the external prerequisites in the table.
 
 The local Gemma artifact has 49 metadata entries, 666 tensors, architecture
 `gemma4`, and no expert-count metadata or tensor names containing `expert`,
@@ -410,3 +419,19 @@ Release qualification of 0f041a7:
 - rpmbuild unavailable: RPM build SKIPPED; Windows/macOS execution SKIPPED on
   this Linux host. Whole workspace qualification NOT RUN; Talvik targeted suites
   above are the evidence. Actual MoE and GPU inference remain unverified.
+
+
+2026-11-11 final checkpoint and handoff:
+
+- Verified branch `feature/talvik-moe-aware-inference`, HEAD
+  `7c7d2d27592542c73c4e25098ed02a010ea4a85a`, clean working tree before this
+  documentation-only reconciliation. All completed implementation commits retained.
+- Installed smoke command `timeout 45s /home/danny/.marina/bin/talvik --plain
+  run --default 'Reply only OK.'`: PASS, output `OK.`, exit 0.
+- Installed talvik/talvikd and libllama.so.0.8.0 SHA-256 values still match
+  the preserved baseline recorded above. YAML still selects Qwen with downloads
+  disabled and auto-load enabled. No installed binary, config, native library,
+  service definition or model artifact changed during this checkpoint.
+- Only handoff documentation updated. No implementation, lengthy test, binary
+  rebuild, service restart/reinstallation or model download performed. Resume
+  only when instructed; the exact next task is recorded above.
