@@ -20,8 +20,8 @@ mkdir -p "$ROOT/var/lib/dpkg" "$ROOT/var/lib/marina/models" "$ROOT/var/lib/oid/e
 : >"$ROOT/var/lib/dpkg/status"
 status=passed; reason=qualified
 contents="$(dpkg-deb --contents "$PACKAGE")"
-for required in /usr/bin/talvikd /usr/bin/talvik /usr/bin/oid-console \
-  /etc/marina/config.yaml /etc/oid/marina-client.env \
+for required in /usr/bin/talvikd /usr/bin/talvik /usr/bin/console /usr/bin/ask \
+  /etc/marina/config.yaml /etc/marinaos/marina-client.env \
   /usr/lib/systemd/system/talvikd.service /usr/lib/systemd/system/oid-readiness.service; do
   printf '%s\n' "$contents" | grep -F " .${required}" >/dev/null || { status=failed; reason="missing:$required"; }
 done

@@ -22,7 +22,7 @@ Build native Linux Marina/OID binaries first using the WP-0078 procedure, then:
 sudo scripts/build-oid-linux-image.sh \
   --talvikd target/release/talvikd \
   --talvik target/release/talvik \
-  --oid-console target/release/oid-console \
+  --oid-console target/release/console \
   --llama-lib-dir /path/to/llama/lib \
   --output artifacts/oid-bookworm-amd64.raw
 ```

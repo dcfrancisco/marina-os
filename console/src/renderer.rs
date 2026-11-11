@@ -12,7 +12,7 @@ impl Renderer {
     pub fn render_startup() {
         println!(
             "\n{} {}",
-            terminal_ui::accent("1;36", "OID Console"),
+            terminal_ui::accent("1;36", "MarinaOS Console"),
             terminal_ui::accent("2", env!("CARGO_PKG_VERSION"))
         );
         println!(

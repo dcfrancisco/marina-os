@@ -234,7 +234,7 @@ $env:MARINA_HTTP_ADDR = "127.0.0.1:11435"
 $env:Path = "$env:USERPROFILE\.marina\lib;$env:Path"
 ```
 
-Start `target\release\talvikd.exe` in that environment. The OID Console is a
+Start `target\release\talvikd.exe` in that environment. The MarinaOS Console is a
 Linux-first MarinaOS component and is not part of the Windows Talvik release.
 Use Talvik's HTTP/OpenAI-compatible API from external clients; the following
 smoke test validates that service boundary.
@@ -317,8 +317,8 @@ assuming Metal was used: a successful smoke test does not by itself qualify
 Metal acceleration or replace the full native lifecycle gate in
 [WP-0080](docs/work-packages/WP-0080-marina-macos-arm64-qualification.md).
 
-The OID Console is a Linux-first MarinaOS component. This macOS procedure
-tests Talvik directly and does not require or launch `oid-console`.
+The MarinaOS Console is a Linux-first MarinaOS component. This macOS procedure
+tests Talvik directly and does not require or launch `console`.
 
 ## Talvik service and client
 
@@ -366,7 +366,7 @@ at `$HOME/.marina/marina.sock` on Linux/macOS, or loopback TCP on Windows via
 The native transport remains local-only; the IDE HTTP bridge is a separate
 loopback compatibility edge.
 
-At the OID prompt, use `:model load gemma-4-e4b-it-q4_0`, followed by
+At the MarinaOS Console prompt, use `:model load gemma-4-e4b-it-q4_0`, followed by
 `:generate The capital of France is`. Use `:generate --max-tokens 4 ...` for a
 short smoke test; the default is 128 tokens. Ctrl+C during generation cancels
 the active request and leaves the console available for another command.
@@ -407,9 +407,27 @@ into a durable end-to-end lifecycle with native and dynamic execution adapters.
 Milestone 6 adds read-only process, filesystem, and systemd inspection skills,
 plus an isolated D-Bus transport contract for future desktop adapters.
 
-Milestone 7 corrects the console interaction model: OID Console remains a real
-Linux shell, while OID-specific controls use an explicit `:` prefix. See
+Milestone 7 corrects the console interaction model: MarinaOS Console remains a real
+Linux shell, while MarinaOS controls use an explicit `:` prefix. See
 [WP-0055](docs/work-packages/WP-0055-terminal-identity-and-shell-passthrough.md).
+
+## Executable names
+
+The `oid-console` Cargo package provides `console`, `ask`, `talvik`, and
+`talvikd`. Build the optional clients with:
+
+```sh
+cargo build -j 2 -p oid-console --bin console --bin ask
+```
+
+Source directories and the Cargo package name are unchanged. The `ask` source
+remains `console/src/bin/oid-marina-chat.rs`. Run it with
+`cargo run -p oid-console --bin ask -- "Hello"` or `./target/debug/ask`.
+The compatibility service unit remains `oid-console.service` and launches `/usr/bin/console`.
+
+`ask` is the public inference client. MarinaOS does not provide a `chat`
+command because PPP already provides `/usr/sbin/chat`. Existing user-scoped
+Talvik installations remain unchanged.
 
 ## Workspace
 

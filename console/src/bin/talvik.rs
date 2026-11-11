@@ -309,7 +309,7 @@ struct GenerationFailure {
 
 fn generate(model: &str, prompt: &str, plain: bool) -> Result<bool, GenerationFailure> {
     generate_inner(model, prompt, plain).map_err(|(message, output_started)| GenerationFailure {
-        message,
+        message: format!("model {model}: {message}"),
         output_started,
     })
 }

@@ -116,7 +116,7 @@ pub fn execute_with_operations_and_signals(
         "help" => (
             vec![
                 "Commands:".to_owned(),
-                "OID commands:".to_owned(),
+                "MarinaOS commands:".to_owned(),
                 "  :help     Show this help".to_owned(),
                 "  :status   Show runtime status".to_owned(),
                 "  :runtime  Show runtime service details".to_owned(),
@@ -359,15 +359,18 @@ pub fn execute_with_operations_and_signals(
             CommandAction::Continue,
         ),
         "clear" => (Vec::new(), CommandAction::Clear),
-        "version" => (vec!["AI Console v0.1".to_owned()], CommandAction::Continue),
+        "version" => (
+            vec![format!("MarinaOS Console v{}", env!("CARGO_PKG_VERSION"))],
+            CommandAction::Continue,
+        ),
         "about" => (
-            vec!["AI Console is the reference client for the Intelligent Runtime.".to_owned()],
+            vec!["MarinaOS Console is a shell and client for Talvik.".to_owned()],
             CommandAction::Continue,
         ),
         "exit" | "quit" => (vec!["Goodbye.".to_owned()], CommandAction::Exit),
         "" => (Vec::new(), CommandAction::Continue),
         _ => (
-            vec![format!("Unknown OID command: {command}. Type :help.")],
+            vec![format!("Unknown MarinaOS command: {command}. Type :help.")],
             CommandAction::Continue,
         ),
     };

@@ -186,7 +186,7 @@ class TerminalTests(unittest.TestCase):
                 self.assertEqual(text, TEXT + "\n")
 
     def test_pipes_contain_one_answer_without_decoration_or_protocol(self):
-        for binary, args in [("talvik", ["run", "fixture-model", "hello"]), ("oid-marina-chat", ["hello"])]:
+        for binary, args in [("talvik", ["run", "fixture-model", "hello"]), ("ask", ["hello"])]:
             with self.subTest(binary=binary), daemon() as instance:
                 result = subprocess.run([str(BIN / binary), *args], env=instance.environment(), capture_output=True, text=True, timeout=8)
                 self.assertEqual(result.returncode, 0, result.stderr)
@@ -194,7 +194,7 @@ class TerminalTests(unittest.TestCase):
                 self.assertEqual(result.stderr, "")
 
     def test_interrupt_before_first_token_cancels_both_clients(self):
-        for binary, args in [("talvik", ["run", "fixture-model", "hello"]), ("oid-marina-chat", ["hello"])]:
+        for binary, args in [("talvik", ["run", "fixture-model", "hello"]), ("ask", ["hello"])]:
             with self.subTest(binary=binary), daemon(cancel=True) as instance:
                 _, text = terminal([str(BIN / binary), *args], instance, interrupt=True)
                 self.assertTrue(instance.cancelled.is_set(), text)

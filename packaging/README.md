@@ -1,8 +1,8 @@
-# OID/Talvik image packaging
+# MarinaOS/Talvik packaging
 
 ## Standalone Talvik packages
 
-Standalone package builders are separate from the OID image package:
+Standalone package builders are separate from the legacy system-profile package:
 
 ```sh
 ./scripts/package-talvik-deb.sh \
@@ -61,9 +61,10 @@ It does not claim GPU acceleration unless a backend has been qualified.
 These files implement the first system-profile image composition described by
 ADR-0023. Marina packaging remains governed by ADR-0014 and WP-0069.
 
-WP-0089 packages these same assets into a versioned Debian artifact with
-`scripts/package-oid-deb.sh`. It includes the `talvikd` daemon, `talvik` client,
-and `oid-console` binaries plus relocatable native libraries; it does not
+The image assets above remain a compatibility profile. WP-0089 packages Talvik
+with the new MarinaOS client staging assets below into a versioned Debian artifact with
+`scripts/package-oid-deb.sh`. It includes `talvikd`, `talvik`, `console`, and
+`ask` binaries plus relocatable native libraries; it does not
 include model files. Run `scripts/qualify-oid-deb.sh` against the resulting
 package to test dpkg lifecycle behavior in an isolated root.
 
@@ -74,18 +75,20 @@ Build the system package on native Linux from qualified artifacts:
   --version 0.1.0 \
   --talvikd target/release/talvikd \
   --talvik target/release/talvik \
-  --oid-console target/release/oid-console \
+  --console target/release/console \
+  --ask target/release/ask \
   --native-lib-dir /path/to/qualified/llama/lib
 ```
 
 Install or upgrade on an authorized Debian/Ubuntu host with `dpkg -i`; then
 explicitly enable/start the existing units with `systemctl`. Package removal
-does not purge `/var/lib/marina/models`, `/var/lib/oid/evidence`, or conffiles.
+does not purge `/var/lib/marina/models`, legacy `/var/lib/oid/evidence`, new
+`/var/lib/marinaos/console/evidence`, or conffiles.
 The package does not bind or claim Reference local runner's port; Marina retains its documented
 loopback default and can be configured separately.
 
-For a rootless OID client installation, use `scripts/install-oid-user.sh`.
-It installs only `oid-console`; Marina remains managed by
+For a rootless MarinaOS client installation, use `scripts/install-oid-user.sh`.
+It installs `console` and `ask`; Talvik remains managed by
 `scripts/install-model-runner.sh` under `$HOME/.marina`.
 
 The two services intentionally have different identities:
@@ -93,13 +96,13 @@ The two services intentionally have different identities:
 - `talvikd.service` runs the model runner as `marina`, owns `/var/lib/marina`,
   and exposes the Unix socket at `/run/marina/marina.sock` plus loopback HTTP
   at `127.0.0.1:12434`.
-- `oid-readiness.service` and `oid-console.service` run as `oid`. OID may
-  request intelligence from Marina, but model output remains subject to OID's
+- `oid-readiness.service` and `oid-console.service` run as `oid`. MarinaOS may
+  request intelligence from Talvik, but model output remains subject to MarinaOS's
   governed-operation pipeline.
 
 The console is a TTY service, not a graphical desktop. A missing model or
 missing client token is a degraded readiness state and does not prevent boot.
-Provision `/etc/oid/marina-client.env` with an inference-scoped token after
+For the legacy image profile, provision `/etc/oid/marina-client.env` with an inference-scoped token after
 installation, then restart `oid-readiness.service`. The model installer must
 verify a SHA-256 before placing an artifact in the Marina model directory.
 
@@ -136,3 +139,42 @@ Set `TALVIK_TEST_TOKEN_FILE` to a private token file; optional `TALVIK_TEST_BASE
 select the service, model IDs, and JSON evidence path. This is a bounded check
 of chat, coding, vision, standard SSE and a tool-result round trip. It does not
 execute filesystem tools or certify any IDE's Agent/Plan mode.
+
+
+### MarinaOS client staging
+
+`DESTDIR=/path/to/stage bash scripts/stage-marinaos-clients.sh BIN_DIR NATIVE_LIB_DIR`
+stages `console` and `ask` as mode 0755 public commands in `/usr/bin`.
+It refuses an existing staged command rather than overwriting it. Private client
+libraries/readiness helpers use `/usr/lib/marinaos`; resources use
+`/usr/share/marinaos`, configuration uses `/etc/marinaos`, and the staged client
+units use `/var/lib/marinaos` and `/var/cache/marinaos`. This is an offline package
+staging mechanism, never a host installer. The Debian system-profile builder uses
+this helper. No `/usr/local/bin` installation occurs.
+
+The existing `oid-marina` Debian package identity and `oid` service principal are
+retained for package/account compatibility. Unit names `oid-console.service` and
+`oid-readiness.service` remain because existing boot dependencies reference them;
+their new client payload uses MarinaOS paths. `--oid-console` remains an input
+alias for `--console` because existing image tooling uses it; image generation
+is outside this change. No legacy executable aliases or copied binaries are added.
+Historical image assets and reports retain their original paths and names.
+
+Talvik's separate package, native library identifiers (including
+`liboid-chat-template`), model IDs and existing system/user configuration paths
+remain unchanged. This client staging change does not migrate installed service
+state. Existing environment keys and serialized fields retain their names.
+The new client package uses `/etc/marinaos/marina-client.env`; existing
+configuration files are not automatically moved or deleted. The client units load
+the legacy `/etc/oid/marina-client.env` first, then the new file so explicit new
+settings take precedence. Per-user installation defaults to `~/.local/bin` via a `~/.local` Cargo prefix;
+legacy client configuration/state overrides remain compatible rather than being
+silently relocated. New user configuration should follow XDG conventions.
+
+PPP owns `/usr/sbin/chat` on the qualification machine. MarinaOS uses `ask`
+and does not stage or install any `chat` command. Normal package ownership
+checks apply to `console` and `ask`; forced overwrites are not supported.
+
+Rootless `scripts/install-oid-user.sh` installs the two clients without Cargo's
+`--force` and places explicitly supplied native payloads in the client prefix's
+`lib/marinaos`; it does not write the existing Talvik home or models.

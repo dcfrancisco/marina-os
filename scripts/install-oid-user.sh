@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Rootless OID console install. Marina remains independently managed by
-# scripts/install-model-runner.sh; this script installs only the OID client
-# and optionally places a supplied native payload in the canonical Marina lib.
+# Rootless MarinaOS client installation. Talvik remains independently managed.
+# Native payloads go into this client prefix, never the running Talvik home.
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PREFIX="${OID_PREFIX:-${XDG_BIN_HOME:-${HOME}/.local}}"
 MARINA_HOME="${MARINA_HOME:-${HOME}/.marina}"
@@ -22,14 +21,16 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -d "$ROOT/console" ]] || { echo "console source tree not found: $ROOT/console" >&2; exit 1; }
 command -v cargo >/dev/null || { echo "cargo is required" >&2; exit 1; }
-cargo install --path "$ROOT/console" --root "$PREFIX" --locked --force --bin oid-console
-mkdir -p "$MARINA_HOME/models" "$MARINA_HOME/state" "$MARINA_HOME/logs"
+# Cargo refuses commands owned by another package; never force an overwrite.
 if [[ -n "$NATIVE_LIB_DIR" ]]; then
   [[ -d "$NATIVE_LIB_DIR" ]] || { echo "native library directory not found: $NATIVE_LIB_DIR" >&2; exit 1; }
-  mkdir -p "$MARINA_HOME/lib"
-  find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \
-    \( -name 'libllama.*' -o -name 'libggml*.*' \) -exec cp -a {} "$MARINA_HOME/lib/" \;
+  export LLAMA_CPP_LIB_DIR="$NATIVE_LIB_DIR"
 fi
-printf '%s\n' "installed oid-console: $PREFIX/bin/oid-console" \
-  "Marina remains separate: $MARINA_HOME/bin/marina" \
-  "models: $MARINA_HOME/models"
+cargo install --path "$ROOT/console" --root "$PREFIX" --locked --bin console --bin ask
+if [[ -n "$NATIVE_LIB_DIR" ]]; then
+  mkdir -p "$PREFIX/lib/marinaos"
+  find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \( \
+    -name 'libllama.*' -o -name 'libggml*.*' -o -name 'libmtmd.*' -o -name 'liboid-chat-template.*' \) -exec cp -a {} "$PREFIX/lib/marinaos/" \;
+fi
+printf '%s\n' "installed MarinaOS clients: $PREFIX/bin/{console,ask}" \
+  "Talvik remains independently managed in $MARINA_HOME."

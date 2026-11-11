@@ -70,3 +70,18 @@ The default status mode is compact. Set `OID_STATUS_MODE=full` or
 `OID_STATUS_MODE=hidden` to change automatic status rendering. The shell
 executor inherits standard streams for interactive commands and exposes a
 captured-output path for tests and non-interactive clients.
+
+## Executable and presentation cleanup — 2026-11-11
+
+Public client commands are `console` and `ask`. The proposed `chat` launcher
+was removed to preserve the final naming decision and avoid the PPP conflict.
+The internal `oid-console` package, configuration keys and
+operation contracts remain compatible. Console startup, help, operation notices
+and inference timing output use MarinaOS branding. The existing shell routing,
+timing calculations and Talvik ownership of inference remain unchanged.
+
+Client package staging follows `/usr/bin`, `/usr/lib/marinaos`,
+`/usr/share/marinaos` and `/etc/marinaos` conventions. Legacy service names and
+optional legacy client configuration are retained. Tests and command conflict
+details are in the [naming evidence](../reports/MARINAOS-NAMING-CLEANUP-2026-11-11.md).
+This slice does not qualify the OS image or installed systemd service lifecycle.

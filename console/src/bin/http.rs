@@ -341,6 +341,8 @@ fn handle(
                         "default": default_model_id.is_some_and(|id| id == model.id),
                         "resident": resident_ids.iter().any(|id| id == &model.id),
                         "estimated_memory_mib": model.memory_requirement_mb,
+                        "storage_accounting": storage_accounting_json(&model.location),
+                        "suitability": suitability_json(&model.location, &runtime.hardware()),
                         "runtime_profile": runtime.model_profile(&model.id).as_ref().map(profile_json)
                     })
                 })
@@ -672,7 +674,9 @@ fn ollama_show(
             "capabilities": runtime.model_profile(model_id).as_ref().map(profile_capabilities).unwrap_or_default(),
             "declared_capabilities": model.capabilities,
             "runtime_profile": runtime.model_profile(model_id).as_ref().map(profile_json),
-            "model_info": {}
+            "model_info": {},
+            "storage_accounting": storage_accounting_json(&model.location),
+            "suitability": suitability_json(&model.location, &runtime.hardware())
         }),
     )
 }
@@ -1968,9 +1972,43 @@ fn profile_capabilities(profile: &ModelProfile) -> Vec<&'static str> {
     result
 }
 
+fn suitability_json(location: &str, hardware: &oid_runtime::HardwareSnapshot) -> Value {
+    let path = std::path::Path::new(location);
+    let weights = oid_runtime::models::inspect_artifact_storage(path)
+        .ok()
+        .and_then(|s| s.tensor_bytes);
+    let kv = oid_runtime::models::estimate_artifact_kv_bytes_per_token(path)
+        .ok()
+        .flatten();
+    let fit = oid_runtime::hardware::assess_model_suitability(hardware, weights, kv, 4096, None);
+    json!({"status": fit.status, "estimated_required_bytes": fit.estimated_required_bytes,
+        "context_tokens": 4096, "backend_compatibility": null,
+        "basis": "payload-based weight estimate plus context floor and safety margin; excludes repacking and retained contexts"})
+}
+
+fn storage_accounting_json(location: &str) -> Value {
+    match oid_runtime::models::inspect_artifact_storage(std::path::Path::new(location)) {
+        Ok(storage) => json!({
+            "status": if storage.tensor_bytes.is_some() { "validated" } else { "unsupported_tensor_type" },
+            "tensor_count": storage.tensor_count,
+            "total_parameters": storage.elements,
+            "active_parameters": null,
+            "tensor_payload_bytes": storage.tensor_bytes,
+            "file_bytes": storage.file_bytes,
+            "data_offset": storage.data_offset,
+            "estimated_resident_weights_bytes": null,
+            "estimated_kv_cache_bytes": null,
+            "estimated_f16_kv_bytes_per_token": oid_runtime::models::estimate_artifact_kv_bytes_per_token(std::path::Path::new(location)).ok().flatten(),
+            "observed_runtime_memory_bytes": null
+        }),
+        Err(_) => json!({"status": "unavailable"}),
+    }
+}
+
 fn profile_json(profile: &ModelProfile) -> Value {
     json!({
         "architecture": profile.architecture, "training_context_length": profile.context_length,
+        "experts": { "kind": profile.experts.kind, "expert_count": profile.experts.expert_count, "experts_per_token": profile.experts.experts_per_token, "explanation": profile.experts.explanation, "active_parameters": null },
         "capabilities": profile_capabilities(profile), "tokenizer_adds_bos": profile.tokenizer_adds_bos,
         "cache_strategy": match profile.cache { CacheStrategy::Disabled => "disabled", CacheStrategy::Attention => "attention", CacheStrategy::Recurrent => "recurrent_checkpoint" },
         "tools_declared": profile.tools_declared,
@@ -4536,6 +4574,42 @@ fn unique_request_id() -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn storage_diagnostics_preserve_unknown_memory_and_invalid_artifacts() {
+        let path =
+            std::env::temp_dir().join(format!("talvik-http-storage-{}.gguf", std::process::id()));
+        let mut bytes = b"GGUF".to_vec();
+        bytes.extend_from_slice(&3_u32.to_le_bytes());
+        bytes.extend_from_slice(&1_u64.to_le_bytes());
+        bytes.extend_from_slice(&0_u64.to_le_bytes());
+        bytes.extend_from_slice(&1_u64.to_le_bytes());
+        bytes.push(b'w');
+        bytes.extend_from_slice(&1_u32.to_le_bytes());
+        bytes.extend_from_slice(&32_u64.to_le_bytes());
+        bytes.extend_from_slice(&2_u32.to_le_bytes());
+        bytes.extend_from_slice(&0_u64.to_le_bytes());
+        bytes.resize(82, 0);
+        std::fs::write(&path, bytes).unwrap();
+        let result = super::storage_accounting_json(path.to_str().unwrap());
+        assert_eq!(result["status"], "validated");
+        assert_eq!(result["tensor_payload_bytes"], 18);
+        assert_eq!(result["total_parameters"], 32);
+        let fit = super::suitability_json(
+            path.to_str().unwrap(),
+            &oid_runtime::HardwareSnapshot::default(),
+        );
+        assert_eq!(fit["status"], "unknown");
+        assert!(fit["backend_compatibility"].is_null());
+        assert!(result["active_parameters"].is_null());
+        assert!(result["estimated_resident_weights_bytes"].is_null());
+        std::fs::write(&path, b"GGUF").unwrap();
+        assert_eq!(
+            super::storage_accounting_json(path.to_str().unwrap())["status"],
+            "unavailable"
+        );
+        std::fs::remove_file(path).unwrap();
+    }
+
     use super::{
         add_ollama_statistics, build_chat_content, build_chat_prompt, build_completion_prompt,
         build_response_prompt, completion_finish_reason, completion_termination_reason,
@@ -4681,6 +4755,7 @@ mod tests {
     fn loaded_profile_fixture() -> oid_runtime::ModelProfile {
         oid_runtime::ModelProfile {
             architecture: "arbitrary-architecture".to_owned(),
+            experts: oid_runtime::ExpertInfo::from_metadata(None, None),
             context_length: 4096,
             completion: true,
             chat: true,
@@ -4702,6 +4777,8 @@ mod tests {
         let mut profile = loaded_profile_fixture();
         profile.tool_format = None;
         let json = super::profile_json(&profile);
+        assert_eq!(json["experts"]["kind"], "unknown");
+        assert!(json["experts"]["active_parameters"].is_null());
         assert_eq!(json["tools_declared"], true);
         assert_eq!(json["embedding_declared"], true);
         assert!(!super::profile_capabilities(&profile).contains(&"tools"));

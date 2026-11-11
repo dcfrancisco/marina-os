@@ -16,7 +16,7 @@ fn console_binary_starts_with_runtime_prompt() {
     ));
     std::fs::create_dir_all(&state_root).expect("startup test state");
     let daemon = support::MockTalvik::start(&state_root);
-    let mut command = Command::new(env!("CARGO_BIN_EXE_oid-console"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_console"));
     daemon.configure(&mut command);
     let output = command
         .env("OID_RUNTIME_BACKEND", "talvik-ipc")
@@ -26,7 +26,7 @@ fn console_binary_starts_with_runtime_prompt() {
     std::fs::remove_dir_all(&state_root).expect("cleanup startup test state");
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("startup output is UTF-8");
-    assert!(stdout.contains("OID Console"));
+    assert!(stdout.contains("MarinaOS Console"));
     assert!(stdout.contains("Type :help to begin."));
     assert!(!stdout.contains("Available models:"));
     assert!(!stdout.contains("Intelligent Runtime"));
@@ -37,7 +37,7 @@ fn console_binary_starts_with_runtime_prompt() {
 
 #[test]
 fn local_console_fails_clearly_when_talvik_ipc_is_unavailable() {
-    let mut command = Command::new(env!("CARGO_BIN_EXE_oid-console"));
+    let mut command = Command::new(env!("CARGO_BIN_EXE_console"));
     command.env("OID_RUNTIME_BACKEND", "talvik-ipc");
     #[cfg(unix)]
     {
@@ -65,14 +65,14 @@ fn local_console_fails_clearly_when_talvik_ipc_is_unavailable() {
 
 #[test]
 fn local_console_rejects_http_backend_selection() {
-    let output = Command::new(env!("CARGO_BIN_EXE_oid-console"))
+    let output = Command::new(env!("CARGO_BIN_EXE_console"))
         .env("OID_RUNTIME_BACKEND", "marina-http")
         .output()
         .expect("console binary should report unsupported remote mode");
 
     assert!(!output.status.success());
     let stderr = String::from_utf8(output.stderr).expect("startup error is UTF-8");
-    assert!(stderr.contains("oid-console is a local MarinaOS client"));
+    assert!(stderr.contains("console is a local MarinaOS client"));
     assert!(stderr.contains("only supports Talvik IPC"));
 }
 

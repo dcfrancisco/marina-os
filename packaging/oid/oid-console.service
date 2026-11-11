@@ -14,7 +14,7 @@ Environment=OID_MARINA_URL=http://127.0.0.1:12434
 Environment=OID_MARINA_MODEL=
 Environment=LD_LIBRARY_PATH=/usr/lib/marina
 WorkingDirectory=/var/lib/oid
-ExecStart=/usr/bin/oid-console
+ExecStart=/usr/bin/console
 Restart=on-failure
 RestartSec=2s
 StandardInput=tty

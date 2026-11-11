@@ -23,15 +23,22 @@ mod terminal_ui;
 mod tui;
 
 fn main() {
+    if std::env::args()
+        .skip(1)
+        .any(|arg| arg == "--help" || arg == "-h")
+    {
+        println!("MarinaOS Console\nUsage: console\nInteractive shell and Talvik client. Type :help for commands and :quit to exit.");
+        return;
+    }
     let application = match tui::Application::start() {
         Ok(application) => application,
         Err(error) => {
-            eprintln!("AI Console failed to start: {error}");
+            eprintln!("MarinaOS Console failed to start: {error}");
             std::process::exit(1);
         }
     };
     if let Err(error) = application.run() {
-        eprintln!("AI Console failed to start: {error}");
+        eprintln!("MarinaOS Console failed to start: {error}");
         std::process::exit(1);
     }
 }

@@ -38,8 +38,13 @@ fn main() {
     } else {
         return;
     };
-    for binary in ["talvik", "talvikd", "oid-console", "oid-marina-chat"] {
+    for binary in ["talvik", "talvikd", "console", "ask"] {
         println!("cargo:rustc-link-arg-bin={binary}={argument}");
+        if matches!(binary, "console" | "ask")
+            && env::var_os("CARGO_CFG_TARGET_OS").as_deref() == Some("linux".as_ref())
+        {
+            println!("cargo:rustc-link-arg-bin={binary}=-Wl,-rpath,$ORIGIN/../lib/marinaos");
+        }
     }
 }
 

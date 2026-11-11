@@ -13,6 +13,7 @@ pub mod backends;
 pub mod config;
 pub mod core;
 pub mod generation;
+mod gguf;
 pub mod hardware;
 pub mod lifecycle;
 pub mod logging;
@@ -44,6 +45,6 @@ pub use training::{
 };
 
 // Shared serving facts contain no engine-native handles.
-pub use oid_model_runner::{CacheStrategy, ModelProfile, ReasoningFormat, ToolFormat};
+pub use oid_model_runner::{CacheStrategy, ExpertInfo, ModelProfile, ReasoningFormat, ToolFormat};
 
 pub use oid_model_runner::output::{ParsedText, ReasoningStreamParser};

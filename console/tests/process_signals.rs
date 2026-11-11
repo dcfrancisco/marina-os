@@ -34,7 +34,7 @@ impl ConsoleProcess {
         );
         std::fs::create_dir_all(state_root.join("models")).expect("console state");
         let daemon = support::MockTalvik::start(&state_root);
-        let mut command = Command::new(env!("CARGO_BIN_EXE_oid-console"));
+        let mut command = Command::new(env!("CARGO_BIN_EXE_console"));
         command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

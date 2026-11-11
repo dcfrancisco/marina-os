@@ -120,6 +120,8 @@ struct ContextParams {
     cb_eval_user_data: *mut c_void,
     type_k: i32,
     type_v: i32,
+    // Present in the installed e4b6c8c backend; keep subsequent ABI offsets intact.
+    moe_cache_size: usize,
     abort_callback: Option<unsafe extern "C" fn(*mut c_void) -> bool>,
     abort_callback_data: *mut c_void,
     embeddings: bool,
@@ -769,8 +771,8 @@ pub struct NativePlacement {
     pub requested_gpu_layers: u32,
     /// Actual offloaded layers, only when the pinned API verifies the count.
     pub offloaded_gpu_layers: Option<u32>,
-    /// Whether llama.cpp reports any non-CPU device used by the model.
-    pub accelerator_used: bool,
+    /// Whether accelerator use is known. GPU execution is not verified by this API.
+    pub accelerator_used: Option<bool>,
 }
 
 /// Enumerate devices registered by the linked ggml build.
@@ -2208,6 +2210,52 @@ impl NativeModel {
 #[cfg(test)]
 #[allow(clippy::items_after_test_module)]
 mod tests {
+    #[cfg(all(native_llama_cpp, target_pointer_width = "64"))]
+    #[test]
+    #[ignore = "requires MARINA_TEST_GGUF; bounded native cancellation lifecycle"]
+    fn bounded_native_cancellation_recovers_with_a_fresh_context() {
+        let path = std::env::var("MARINA_TEST_GGUF").expect("local GGUF fixture");
+        super::initialize().unwrap();
+        let model = super::load_model(&path, None, super::cpu_load_options()).unwrap();
+        let cancellation = std::sync::atomic::AtomicBool::new(false);
+        let run = |accept| {
+            model.generate_stream(
+                "Hi",
+                128,
+                1,
+                0.0,
+                0.95,
+                40,
+                42,
+                &[],
+                |_| accept,
+                &cancellation,
+            )
+        };
+        assert!(!run(true).unwrap().cache_hit);
+        assert!(run(false).is_err());
+        assert!(!run(true).unwrap().cache_hit);
+        model.reset_context().unwrap();
+        drop(model);
+        super::shutdown();
+    }
+
+    #[test]
+    fn context_params_match_verified_native_layout() {
+        use super::ContextParams;
+        // Compared with sizeof/offsetof from the installed build's llama.h.
+        assert_eq!(std::mem::size_of::<ContextParams>(), 168);
+        assert_eq!(std::mem::offset_of!(ContextParams, moe_cache_size), 112);
+        assert_eq!(std::mem::offset_of!(ContextParams, abort_callback), 120);
+        assert_eq!(std::mem::offset_of!(ContextParams, embeddings), 136);
+        assert_eq!(std::mem::offset_of!(ContextParams, samplers), 144);
+        assert_eq!(std::mem::offset_of!(ContextParams, ctx_other), 160);
+        let params = unsafe { super::ffi::llama_context_default_params() };
+        assert_eq!(params.moe_cache_size, 0);
+        assert!(params.abort_callback.is_none());
+        assert!(params.abort_callback_data.is_null());
+    }
+
     use super::{cached_prefix_matches, classify_decode_result, decode_error, DecodeOutcome};
     #[cfg(native_mtmd)]
     use std::io::Cursor;
@@ -2226,6 +2274,14 @@ mod tests {
             32768
         );
         assert_eq!(super::text_context_capacity(0, 0, 0), 0);
+    }
+
+    #[test]
+    fn requested_gpu_layers_do_not_prove_accelerator_use() {
+        use super::{known_accelerator_use, NativeBackend};
+        assert_eq!(known_accelerator_use(NativeBackend::Cpu, 0), Some(false));
+        assert_eq!(known_accelerator_use(NativeBackend::Cuda, 0), Some(false));
+        assert_eq!(known_accelerator_use(NativeBackend::Cuda, 1), None);
     }
 
     #[test]
@@ -3291,10 +3347,26 @@ fn output_formats(
 }
 
 #[cfg(native_llama_cpp)]
+fn inspect_experts(pointer: *const c_void, architecture: &str) -> oid_model_runner::ExpertInfo {
+    let expert_metadata = |suffix: &str| {
+        CString::new(format!("{architecture}.{suffix}"))
+            .ok()
+            .and_then(|key| model_metadata(pointer, &key))
+    };
+    let expert_count = expert_metadata("expert_count");
+    let expert_used_count = expert_metadata("expert_used_count");
+    oid_model_runner::ExpertInfo::from_metadata(
+        expert_count.as_deref(),
+        expert_used_count.as_deref(),
+    )
+}
+
+#[cfg(native_llama_cpp)]
 fn inspect_loaded_profile(pointer: *const c_void, vision: bool) -> oid_model_runner::ModelProfile {
     use oid_model_runner::{CacheStrategy, ModelProfile};
     let architecture =
         model_metadata(pointer, c"general.architecture").unwrap_or_else(|| "unknown".to_owned());
+    let experts = inspect_experts(pointer, &architecture);
     let template_pointer = unsafe { ffi::llama_model_chat_template(pointer, std::ptr::null()) };
     let template = if template_pointer.is_null() {
         String::new()
@@ -3359,6 +3431,7 @@ fn inspect_loaded_profile(pointer: *const c_void, vision: bool) -> oid_model_run
     let pooling_key = CString::new(format!("{architecture}.pooling_type")).ok();
     ModelProfile {
         architecture,
+        experts,
         context_length: u32::try_from(unsafe { ffi::llama_model_n_ctx_train(pointer) })
             .unwrap_or(0),
         completion,
@@ -3404,6 +3477,11 @@ impl Drop for NativeModel {
             ffi::llama_model_free(self.pointer);
         }
     }
+}
+
+#[cfg(any(native_llama_cpp, test))]
+fn known_accelerator_use(backend: NativeBackend, gpu_layers: u32) -> Option<bool> {
+    (backend == NativeBackend::Cpu || gpu_layers == 0).then_some(false)
 }
 
 /// Load a GGUF file using `llama_model_load_from_file`.
@@ -3504,7 +3582,7 @@ pub fn load_model(
                 // layer count. Keep this unknown instead of echoing the
                 // requested value as an observed fact.
                 offloaded_gpu_layers: (options.gpu_layers == 0).then_some(0),
-                accelerator_used: options.backend != NativeBackend::Cpu && options.gpu_layers > 0,
+                accelerator_used: known_accelerator_use(options.backend, options.gpu_layers),
             },
         })
     }

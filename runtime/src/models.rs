@@ -8,6 +8,93 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::{Arc, Mutex};
 
+/// A GGUF tensor descriptor, without loading or validating tensor data.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GgufTensorInfo {
+    /// Tensor name as declared in the artifact.
+    pub name: String,
+    /// Tensor dimensions in GGUF order.
+    pub shape: Vec<u64>,
+    /// Raw GGML tensor type identifier, which may be unknown.
+    pub tensor_type: u32,
+    /// Offset relative to the GGUF tensor data section.
+    pub offset: u64,
+}
+
+/// Read bounded GGUF tensor descriptors without loading tensor data.
+///
+/// Descriptors are limited to 100,000 tensors and 32 MiB of header data.
+/// Types, offsets, data extents and backend compatibility are not validated.
+///
+/// # Errors
+/// Returns an error on malformed, truncated or over-limit header data.
+pub fn inspect_artifact_tensors(path: &Path) -> std::io::Result<Vec<GgufTensorInfo>> {
+    crate::gguf::inspect_tensors(path)
+}
+
+/// Validated on-disk tensor accounting. This is not a runtime memory estimate.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct GgufStorageInfo {
+    /// Number of tensor descriptors.
+    pub tensor_count: usize,
+    /// Total elements across all tensors, including all experts.
+    pub elements: u64,
+    /// Sum of tensor payload bytes; unknown when any tensor type is unsupported.
+    pub tensor_bytes: Option<u64>,
+    /// Start of the aligned tensor data section.
+    pub data_offset: u64,
+    /// Complete artifact length, including metadata and padding.
+    pub file_bytes: u64,
+}
+
+/// Inspect on-disk tensor storage without loading tensor data.
+/// Unknown tensor types retain unknown byte lengths and cannot have their full
+/// extents validated. No runtime allocation or backend support is implied.
+///
+/// # Errors
+/// Returns an error for invalid headers, arithmetic, alignment, or known extents.
+pub fn inspect_artifact_storage(path: &Path) -> std::io::Result<GgufStorageInfo> {
+    crate::gguf::inspect_storage(path)
+}
+
+/// Estimate F16 attention KV payload bytes per context token for supported
+/// full-attention architectures. Excludes allocator padding and scratch space.
+///
+/// # Errors
+/// Returns an error when bounded GGUF metadata inspection fails.
+pub fn estimate_artifact_kv_bytes_per_token(path: &Path) -> std::io::Result<Option<u64>> {
+    crate::gguf::kv_bytes_per_token(path)
+}
+
+/// Classify bounded GGUF metadata and tensor-header evidence without loading.
+///
+/// Valid expert declarations classify other architectures. Gemma 4 additionally
+/// requires consistent per-layer FFN shapes; missing declarations can be resolved
+/// from its complete FFN structure. Malformed or conflicting evidence stays unknown.
+/// This does not validate tensor data, offsets, types or backend serving support.
+///
+/// # Errors
+/// Returns an error on malformed, truncated or over-limit GGUF header data.
+pub fn inspect_artifact_expert_evidence(
+    path: &Path,
+) -> std::io::Result<oid_model_runner::ExpertInfo> {
+    let (facts, tensors) = crate::gguf::inspect_tensor_evidence(path)?;
+    Ok(crate::gguf::classify_experts(facts, &tensors))
+}
+
+/// Inspect declared expert routing metadata without loading the model.
+///
+/// Missing or inconsistent declarations remain unknown; tensor contents are
+/// not inspected and no claim is made about backend support.
+///
+/// # Errors
+/// Returns an error if the artifact cannot be read as bounded GGUF metadata.
+pub fn inspect_artifact_experts(path: &Path) -> std::io::Result<oid_model_runner::ExpertInfo> {
+    Ok(crate::gguf::inspect(path)?
+        .experts
+        .unwrap_or_else(|| oid_model_runner::ExpertInfo::from_metadata(None, None)))
+}
+
 /// Model lifecycle status represented by metadata only.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum ModelStatus {
@@ -906,6 +993,9 @@ impl ModelDiscovery {
                     .metadata()
                     .map(|metadata| metadata.len())
                     .unwrap_or_default();
+                // Invalid or oversized metadata does not prevent discovery of
+                // other artifacts; the backend remains the authority on load.
+                let facts = crate::gguf::inspect(&path).unwrap_or_default();
                 let model = ModelMetadata {
                     id: id.clone(),
                     name: path
@@ -913,10 +1003,10 @@ impl ModelDiscovery {
                         .and_then(|name| name.to_str())
                         .unwrap_or(&id)
                         .to_owned(),
-                    family: "unknown".to_owned(),
+                    family: facts.architecture.unwrap_or_else(|| "unknown".to_owned()),
                     backend: backend.to_owned(),
-                    quantization: "unknown".to_owned(),
-                    context_window: 0,
+                    quantization: facts.quantization.unwrap_or("unknown").to_owned(),
+                    context_window: facts.context.unwrap_or(0),
                     memory_requirement_mb: bytes.div_ceil(1_048_576),
                     capabilities: vec!["text".to_owned()],
                     status: ModelStatus::Registered,
