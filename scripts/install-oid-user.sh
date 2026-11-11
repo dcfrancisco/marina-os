@@ -26,11 +26,11 @@ if [[ -n "$NATIVE_LIB_DIR" ]]; then
   [[ -d "$NATIVE_LIB_DIR" ]] || { echo "native library directory not found: $NATIVE_LIB_DIR" >&2; exit 1; }
   export LLAMA_CPP_LIB_DIR="$NATIVE_LIB_DIR"
 fi
-cargo install --path "$ROOT/console" --root "$PREFIX" --locked --bin console --bin chat --bin ask
+cargo install --path "$ROOT/console" --root "$PREFIX" --locked --bin console --bin ask
 if [[ -n "$NATIVE_LIB_DIR" ]]; then
   mkdir -p "$PREFIX/lib/marinaos"
   find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \( \
     -name 'libllama.*' -o -name 'libggml*.*' -o -name 'libmtmd.*' -o -name 'liboid-chat-template.*' \) -exec cp -a {} "$PREFIX/lib/marinaos/" \;
 fi
-printf '%s\n' "installed MarinaOS clients: $PREFIX/bin/{console,chat,ask}" \
+printf '%s\n' "installed MarinaOS clients: $PREFIX/bin/{console,ask}" \
   "Talvik remains independently managed in $MARINA_HOME."

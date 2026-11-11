@@ -7,10 +7,10 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 VERSION="${VERSION:-0.1.0}"
 OUTPUT="${OUTPUT:-$ROOT/artifacts/oid-marina_${VERSION}_amd64.deb}"
-TALVIKD=""; TALVIK=""; OID_CONSOLE=""; CHAT=""; ASK=""; NATIVE_LIB_DIR=""
+TALVIKD=""; TALVIK=""; OID_CONSOLE=""; ASK=""; NATIVE_LIB_DIR=""
 
 usage() {
-  echo "usage: $0 --talvikd PATH --talvik PATH --console PATH --chat PATH --ask PATH --native-lib-dir DIR [--version VERSION] [--output PATH]" >&2
+  echo "usage: $0 --talvikd PATH --talvik PATH --console PATH --ask PATH --native-lib-dir DIR [--version VERSION] [--output PATH]" >&2
   exit 2
 }
 while [[ $# -gt 0 ]]; do
@@ -18,7 +18,6 @@ while [[ $# -gt 0 ]]; do
     --talvikd) TALVIKD="$2"; shift 2;;
     --talvik) TALVIK="$2"; shift 2;;
     --console|--oid-console) OID_CONSOLE="$2"; shift 2;;
-    --chat) CHAT="$2"; shift 2;;
     --ask) ASK="$2"; shift 2;;
     --native-lib-dir) NATIVE_LIB_DIR="$2"; shift 2;;
     --version) VERSION="$2"; shift 2;;
@@ -27,7 +26,7 @@ while [[ $# -gt 0 ]]; do
     *) echo "unknown option: $1" >&2; usage;;
   esac
 done
-[[ -x "$CHAT" && -x "$ASK" && -x "$TALVIKD" && -x "$TALVIK" && -x "$OID_CONSOLE" && -d "$NATIVE_LIB_DIR" ]] || usage
+[[ -x "$ASK" && -x "$TALVIKD" && -x "$TALVIK" && -x "$OID_CONSOLE" && -d "$NATIVE_LIB_DIR" ]] || usage
 command -v dpkg-deb >/dev/null || { echo "dpkg-deb is required" >&2; exit 1; }
 [[ "$VERSION" =~ ^[0-9][0-9A-Za-z.+~:-]*$ ]] || { echo "invalid Debian version: $VERSION" >&2; exit 2; }
 
@@ -48,7 +47,6 @@ install -m 0755 "$TALVIK" "$PKG/usr/bin/talvik"
 CLIENT_BIN="$WORK/clients"
 mkdir -p "$CLIENT_BIN"
 ln -s "$(realpath "$OID_CONSOLE")" "$CLIENT_BIN/console"
-ln -s "$(realpath "$CHAT")" "$CLIENT_BIN/chat"
 ln -s "$(realpath "$ASK")" "$CLIENT_BIN/ask"
 DESTDIR="$PKG" bash "$ROOT/scripts/stage-marinaos-clients.sh" "$CLIENT_BIN" "$NATIVE_LIB_DIR"
 find "$NATIVE_LIB_DIR" -maxdepth 1 \( -type f -o -type l \) \

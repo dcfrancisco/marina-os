@@ -359,9 +359,12 @@ pub fn execute_with_operations_and_signals(
             CommandAction::Continue,
         ),
         "clear" => (Vec::new(), CommandAction::Clear),
-        "version" => (vec!["AI Console v0.1".to_owned()], CommandAction::Continue),
+        "version" => (
+            vec![format!("MarinaOS Console v{}", env!("CARGO_PKG_VERSION"))],
+            CommandAction::Continue,
+        ),
         "about" => (
-            vec!["AI Console is the reference client for the Intelligent Runtime.".to_owned()],
+            vec!["MarinaOS Console is a shell and client for Talvik.".to_owned()],
             CommandAction::Continue,
         ),
         "exit" | "quit" => (vec!["Goodbye.".to_owned()], CommandAction::Exit),

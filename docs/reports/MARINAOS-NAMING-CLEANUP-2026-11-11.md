@@ -1,5 +1,91 @@
 # MarinaOS executable naming cleanup
 
+## Recovery completion: final command decision
+
+The final public commands are **`console`, `ask`, `talvik`, `talvikd`**.
+This section supersedes the `chat` executable/package decisions in the historical
+record below. Recovery began from a clean working tree at `ce3567b`; no
+uncommitted user work needed integration. The newly introduced `chat/main.rs`,
+Cargo target, linker entry, installer/package inputs, staging entries, CI copy
+and integration-test executable references have been removed. No unrelated
+user file or PPP executable was removed. Active documentation now uses `ask`.
+Console `:version` and `:about` also use MarinaOS branding, with the version
+read from Cargo rather than a stale literal. Timing calculations are unchanged.
+
+### Exact reproduced failures and resolution
+
+```sh
+LD_LIBRARY_PATH=/home/danny/.marina/lib cargo test --offline -j 2 -p oid-console --bin ask -- --test-threads=1
+```
+
+Inside the sandbox, 23 tests passed and these two failed:
+
+- `ipc::tests::running_socket_is_preserved_and_stale_socket_can_be_restarted`
+  at `console/src/bin/../ipc.rs:187:56`:
+  `first daemon: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
+- `ipc_runtime::tests::generation_reader_streams_tokens_and_cleans_up_request_state`
+  at `console/src/bin/../ipc_runtime.rs:1118:14`:
+  `write mock generation: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }`
+
+The same command with permission to create Unix sockets outside the sandbox
+passed all 25 tests before the recovery edits. These are sandbox restrictions,
+not code regressions or outdated naming assertions. The remedy is the required
+socket permission; neither test was disabled, skipped or weakened.
+
+### Final verification
+
+All of the following passed on the corrected source:
+
+```sh
+cargo fmt --all -- --check
+cargo check --offline -j 2 -p oid-console --all-targets
+LD_LIBRARY_PATH=/home/danny/.marina/lib cargo clippy --offline -j 2 -p oid-console --all-targets -- -D warnings
+LD_LIBRARY_PATH=/home/danny/.marina/lib cargo test --offline -j 2 -p oid-console --bin console --bin ask --test startup --test ipc_chat --test process_signals -- --test-threads=1
+python3 scripts/test-linux-package-ownership.py
+bash -n scripts/stage-marinaos-clients.sh scripts/install-oid-user.sh scripts/package-oid-deb.sh scripts/qualify-oid-deb.sh
+git diff --check
+```
+
+The Rust suite passed 81 tests (25 ask, 43 console, 3 IPC/help, 6 signal,
+4 startup) with socket permission. Package fixtures verified exactly four
+public commands in `/usr/bin`, executable mode 0755 for clients, existing
+command collision rejection, and preservation of an unrelated staged `chat`.
+An additional disposable DESTDIR run with the actual debug clients and installed
+native libraries staged only `console` and `ask` in `/usr/bin`; both `--help`
+commands passed with `LD_LIBRARY_PATH` and `DYLD_LIBRARY_PATH` removed. Cargo
+metadata contains exactly the four intended binary targets. Existing stale build
+outputs are not installed or used by the staging scripts.
+
+```sh
+LD_LIBRARY_PATH=/home/danny/.marina/lib timeout 60s target/debug/ask --timing Hello
+LD_LIBRARY_PATH=/home/danny/.marina/lib timeout 60s /home/danny/.marina/bin/talvik run --default Hello
+printf ':version\n:about\n:quit\n' | LD_LIBRARY_PATH=/home/danny/.marina/lib timeout 15s target/debug/console
+```
+
+All passed against the existing service. Both inference requests returned
+`Hello! How can I assist you today?`. Ask reported
+`Model: qwen2.5-0.5b-instruct-q4_k_m`, `Backend: talvikd (llama.cpp)` and
+`MarinaOS Inference Metrics`, with client/backend provenance and no obsolete OID
+labels; model load duration remained unavailable. Console startup, version,
+about and clean exit passed. These requests are smoke tests, not benchmarks.
+
+Before/after SHA-256 manifests matched for all 30 entries under the installed
+`/home/danny/.marina/bin`, `lib`, `models`, and `config.yaml` paths, including
+regular-file modes and symlink targets where applicable. No installed binaries,
+native libraries, model contents or configuration changed during recovery.
+The local manifests are `/tmp/marina-naming-installed-before.json` and
+`/tmp/marina-naming-installed-after.json`; they are not repository artifacts.
+
+Remaining legacy identifiers are internal Cargo package/source names,
+configuration/environment/API compatibility fields, the `oid` account and legacy
+unit/configuration inputs, private `liboid-chat-template`, and historical
+evidence. `chat` still describes the inference operation/API; it is not a public
+executable. Existing user-scoped clients and the Talvik service were not
+reinstalled or restarted. OS image generation, boot work and inference internals
+were not modified. No milestone tag or push is part of this recovery.
+
+## Historical record at ce3567b (superseded where stated above)
+
 Date: 2026-11-11. Branch: `feature/talvik-moe-aware-inference`.
 Resumed the interrupted naming assignment on `564e157`, preserving its existing
 uncommitted edits. This report covers source and bounded client/package tests.

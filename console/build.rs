@@ -38,7 +38,7 @@ fn main() {
     } else {
         return;
     };
-    for binary in ["talvik", "talvikd", "console", "ask", "chat"] {
+    for binary in ["talvik", "talvikd", "console", "ask"] {
         println!("cargo:rustc-link-arg-bin={binary}={argument}");
         if matches!(binary, "console" | "ask")
             && env::var_os("CARGO_CFG_TARGET_OS").as_deref() == Some("linux".as_ref())

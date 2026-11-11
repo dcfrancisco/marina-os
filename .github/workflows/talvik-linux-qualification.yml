@@ -46,9 +46,9 @@ jobs:
           LLAMA_CPP_LIB_DIR: ${{ runner.temp }}/native
           LLAMA_CPP_REQUIRED: "1"
         run: |
-          cargo build --release -p oid-console --bin talvikd --bin talvik --bin ask --bin chat
+          cargo build --release -p oid-console --bin talvikd --bin talvik --bin ask
           mkdir -p "$RUNNER_TEMP/marina/bin" "$RUNNER_TEMP/marina/lib"
-          cp target/release/talvikd target/release/talvik target/release/ask target/release/chat "$RUNNER_TEMP/marina/bin/"
+          cp target/release/talvikd target/release/talvik target/release/ask "$RUNNER_TEMP/marina/bin/"
           cp "$RUNNER_TEMP"/native/libllama.so* "$RUNNER_TEMP/marina/lib/"
           cp "$RUNNER_TEMP"/native/libggml*.so* "$RUNNER_TEMP/marina/lib/"
           ldd "$RUNNER_TEMP/marina/bin/talvikd" | tee "$RUNNER_TEMP/marina-ldd.txt"

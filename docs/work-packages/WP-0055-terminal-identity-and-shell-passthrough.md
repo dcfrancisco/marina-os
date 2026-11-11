@@ -73,8 +73,9 @@ captured-output path for tests and non-interactive clients.
 
 ## Executable and presentation cleanup — 2026-11-11
 
-Public commands are `console`, `chat`, and `ask`; `chat` launches the sibling
-`ask` executable. The internal `oid-console` package, configuration keys and
+Public client commands are `console` and `ask`. The proposed `chat` launcher
+was removed to preserve the final naming decision and avoid the PPP conflict.
+The internal `oid-console` package, configuration keys and
 operation contracts remain compatible. Console startup, help, operation notices
 and inference timing output use MarinaOS branding. The existing shell routing,
 timing calculations and Talvik ownership of inference remain unchanged.

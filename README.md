@@ -413,11 +413,11 @@ Linux shell, while MarinaOS controls use an explicit `:` prefix. See
 
 ## Executable names
 
-The `oid-console` Cargo package provides `console`, `chat`, `ask`, `talvik`, and
+The `oid-console` Cargo package provides `console`, `ask`, `talvik`, and
 `talvikd`. Build the optional clients with:
 
 ```sh
-cargo build -j 2 -p oid-console --bin console --bin chat --bin ask
+cargo build -j 2 -p oid-console --bin console --bin ask
 ```
 
 Source directories and the Cargo package name are unchanged. The `ask` source
@@ -425,12 +425,9 @@ remains `console/src/bin/oid-marina-chat.rs`. Run it with
 `cargo run -p oid-console --bin ask -- "Hello"` or `./target/debug/ask`.
 The compatibility service unit remains `oid-console.service` and launches `/usr/bin/console`.
 
-`chat` is a small launcher for its sibling `ask`; the inference client is built
-once as `ask`. Both support `--help`. PPP owns `/usr/sbin/chat` on the Phenom;
-MarinaOS packages install `/usr/bin/chat` and never replace PPP's file. If PATH
-selects PPP, invoke `/usr/bin/chat` explicitly. User installs can use the full
-path in their selected prefix. Package managers must reject conflicting ownership
-of `/usr/bin/chat`; do not use forced file overwrites.
+`ask` is the public inference client. MarinaOS does not provide a `chat`
+command because PPP already provides `/usr/sbin/chat`. Existing user-scoped
+Talvik installations remain unchanged.
 
 ## Workspace
 

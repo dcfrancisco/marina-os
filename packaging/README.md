@@ -63,8 +63,8 @@ ADR-0023. Marina packaging remains governed by ADR-0014 and WP-0069.
 
 The image assets above remain a compatibility profile. WP-0089 packages Talvik
 with the new MarinaOS client staging assets below into a versioned Debian artifact with
-`scripts/package-oid-deb.sh`. It includes the `talvikd` daemon, `talvik` client,
-and `console`, `chat`, and `ask` binaries plus relocatable native libraries; it does not
+`scripts/package-oid-deb.sh`. It includes `talvikd`, `talvik`, `console`, and
+`ask` binaries plus relocatable native libraries; it does not
 include model files. Run `scripts/qualify-oid-deb.sh` against the resulting
 package to test dpkg lifecycle behavior in an isolated root.
 
@@ -76,7 +76,6 @@ Build the system package on native Linux from qualified artifacts:
   --talvikd target/release/talvikd \
   --talvik target/release/talvik \
   --console target/release/console \
-  --chat target/release/chat \
   --ask target/release/ask \
   --native-lib-dir /path/to/qualified/llama/lib
 ```
@@ -89,7 +88,7 @@ The package does not bind or claim Reference local runner's port; Marina retains
 loopback default and can be configured separately.
 
 For a rootless MarinaOS client installation, use `scripts/install-oid-user.sh`.
-It installs `console`, `chat`, and `ask`; Talvik remains managed by
+It installs `console` and `ask`; Talvik remains managed by
 `scripts/install-model-runner.sh` under `$HOME/.marina`.
 
 The two services intentionally have different identities:
@@ -145,7 +144,7 @@ execute filesystem tools or certify any IDE's Agent/Plan mode.
 ### MarinaOS client staging
 
 `DESTDIR=/path/to/stage bash scripts/stage-marinaos-clients.sh BIN_DIR NATIVE_LIB_DIR`
-stages `console`, `chat`, and `ask` as mode 0755 public commands in `/usr/bin`.
+stages `console` and `ask` as mode 0755 public commands in `/usr/bin`.
 It refuses an existing staged command rather than overwriting it. Private client
 libraries/readiness helpers use `/usr/lib/marinaos`; resources use
 `/usr/share/marinaos`, configuration uses `/etc/marinaos`, and the staged client
@@ -172,12 +171,10 @@ settings take precedence. Per-user installation defaults to `~/.local/bin` via a
 legacy client configuration/state overrides remain compatible rather than being
 silently relocated. New user configuration should follow XDG conventions.
 
-PPP owns `/usr/sbin/chat` on the qualification machine. The package's distinct
-`/usr/bin/chat` does not overwrite it; use that full path if PATH selects PPP.
-A conflicting `/usr/bin/chat` from any other package must be resolved by normal
-package ownership checks, never forced installation. No console system-package
-collision was found; the current `console` is the user-installed MarinaOS client.
+PPP owns `/usr/sbin/chat` on the qualification machine. MarinaOS uses `ask`
+and does not stage or install any `chat` command. Normal package ownership
+checks apply to `console` and `ask`; forced overwrites are not supported.
 
-Rootless `scripts/install-oid-user.sh` installs the three clients without Cargo's
+Rootless `scripts/install-oid-user.sh` installs the two clients without Cargo's
 `--force` and places explicitly supplied native payloads in the client prefix's
 `lib/marinaos`; it does not write the existing Talvik home or models.

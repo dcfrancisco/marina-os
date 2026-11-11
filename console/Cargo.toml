@@ -26,10 +26,6 @@ path = "src/bin/talvikd.rs"
 name = "ask"
 path = "src/bin/oid-marina-chat.rs"
 
-[[bin]]
-name = "chat"
-path = "../chat/main.rs"
-
 [dependencies]
 oid-runtime = { path = "../runtime" }
 oid-model-client = { path = "../crates/model-client" }
