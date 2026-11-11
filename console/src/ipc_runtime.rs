@@ -111,7 +111,7 @@ impl IpcRuntimeService {
 
     fn report_unavailable(&self, error: &io::Error) {
         if !self.unavailable_reported.swap(true, Ordering::Relaxed) {
-            eprintln!("OID could not reach Talvik over local IPC: {error}");
+            eprintln!("MarinaOS could not reach Talvik over local IPC: {error}");
         }
     }
 

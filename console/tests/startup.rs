@@ -26,7 +26,7 @@ fn console_binary_starts_with_runtime_prompt() {
     std::fs::remove_dir_all(&state_root).expect("cleanup startup test state");
     assert!(output.status.success());
     let stdout = String::from_utf8(output.stdout).expect("startup output is UTF-8");
-    assert!(stdout.contains("OID Console"));
+    assert!(stdout.contains("MarinaOS Console"));
     assert!(stdout.contains("Type :help to begin."));
     assert!(!stdout.contains("Available models:"));
     assert!(!stdout.contains("Intelligent Runtime"));

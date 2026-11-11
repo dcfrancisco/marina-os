@@ -1,4 +1,4 @@
-//! One-shot OID chat client using Talvik's local IPC transport.
+//! One-shot `MarinaOS` chat client using Talvik's local IPC transport.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -73,7 +73,7 @@ fn main() {
         ) {
             std::process::exit(130);
         }
-        eprintln!("OID Talvik IPC client failed: {error}");
+        eprintln!("MarinaOS Talvik IPC client failed: {error}");
         std::process::exit(1);
     }
 }
@@ -83,6 +83,13 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     let plain = raw_arguments.first().is_some_and(|arg| arg == "--plain");
     if plain {
         raw_arguments.remove(0);
+    }
+    if raw_arguments
+        .iter()
+        .any(|arg| arg == "--help" || arg == "-h")
+    {
+        println!("MarinaOS Ask\nUsage: ask [--plain] [--timing | --benchmark [--runs N]] <prompt>");
+        return Ok(());
     }
     let arguments = parse_arguments(&raw_arguments)?;
     let total_started = Instant::now();
@@ -369,7 +376,7 @@ fn print_timing(response: &ChatResponse, total_elapsed: Duration) {
         format_execution(response.execution.as_ref())
     );
     println!(
-        "OID client total (client config, discovery, request): {:.3} s (OID client-measured)",
+        "Client total: {:.3} s (client-measured)",
         total_elapsed.as_secs_f64()
     );
     print_milliseconds(
@@ -470,7 +477,7 @@ fn run_benchmark(
         }
         states.push(state);
         println!(
-            "Run {}: {:.3} ms (OID client-measured), state: {}, execution: {}, prompt tokens: {}, output tokens: {}, TTFT: {} (backend-reported), inference: {} (backend-reported), load: {} (Talvik load-boundary), throughput: {} (backend-reported)",
+            "Run {}: {:.3} ms (client-measured), state: {}, execution: {}, prompt tokens: {}, output tokens: {}, TTFT: {} (backend-reported), inference: {} (backend-reported), load: {} (Talvik load-boundary), throughput: {} (backend-reported)",
             run + 1,
             elapsed,
             state,
@@ -507,8 +514,8 @@ fn run_benchmark(
         reported_backend.as_deref().unwrap_or("unavailable")
     );
     println!("Runs: {runs}");
-    println!("Median latency: {median:.3} ms (OID client-measured)");
-    println!("P95 latency: {p95:.3} ms (OID client-measured)");
+    println!("Median latency: {median:.3} ms (client-measured)");
+    println!("P95 latency: {p95:.3} ms (client-measured)");
     println!(
         "Execution placement summary: {}",
         execution_placements

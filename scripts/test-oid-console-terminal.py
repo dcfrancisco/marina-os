@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Unix acceptance checks for OID's dot prompt, footer and terminal restoration.
+"""Unix acceptance checks for MarinaOS's dot prompt, footer and terminal restoration.
 Usage: python3 scripts/test-oid-console-terminal.py [BIN_DIR]
 """
 import fcntl
@@ -114,7 +114,7 @@ class ConsoleTests(unittest.TestCase):
         with fixture.daemon() as daemon:
             console = self.start(daemon)
             console.until(". \x1b[3G")
-            self.assertIn("OID Console", console.plain())
+            self.assertIn("MarinaOS Console", console.plain())
             self.assertNotRegex(console.text(), r"\x1b\[[0-9;]*m")
             self.assertIn("Ready · No model loaded", console.plain())
             self.assertIn("\x1b[1;23r", console.text())

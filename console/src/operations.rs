@@ -63,7 +63,7 @@ impl ConsoleOperations {
             return Ok(vec!["No recoverable operations.".to_owned()]);
         }
         let mut output = vec![format!(
-            "OID detected {} interrupted operation(s).",
+            "MarinaOS detected {} interrupted operation(s).",
             records.len() + pending.len()
         )];
         output.extend(records.iter().map(render_record));

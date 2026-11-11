@@ -1,6 +1,6 @@
 [package]
 name = "oid-console"
-description = "Phase 1 keyboard-first AI Console foundation."
+description = "MarinaOS Console and Talvik command clients."
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -25,6 +25,10 @@ path = "src/bin/talvikd.rs"
 [[bin]]
 name = "ask"
 path = "src/bin/oid-marina-chat.rs"
+
+[[bin]]
+name = "chat"
+path = "../chat/main.rs"
 
 [dependencies]
 oid-runtime = { path = "../runtime" }

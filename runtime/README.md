@@ -140,17 +140,17 @@ remain in the IDE or an OS secret manager. The bridge binds to loopback by
 default and must not be exposed publicly without the planned authenticated
 service boundary.
 
-The provider-neutral OID client uses `OID_MARINA_URL`, `OID_MARINA_TOKEN`, and
+The provider-neutral MarinaOS client uses `OID_MARINA_URL`, `OID_MARINA_TOKEN`, and
 optional `OID_MARINA_MODEL`. Its default endpoint is
 `http://127.0.0.1:11435` on Windows, where port 11434 is reserved for local
 IPC, and `http://127.0.0.1:11434` on Linux/macOS. The first client slice rejects
 remote endpoints until a trusted TLS boundary is implemented.
 
-The OID Console is a Linux-first MarinaOS component and uses Talvik's local
+The MarinaOS Console is a Linux-first MarinaOS component and uses Talvik's local
 IPC protocol exclusively for model operations. It requires a running,
 protocol-compatible daemon and does not fall back to an in-process runtime.
 Talvik's HTTP and OpenAI-compatible endpoints are for external clients such as
-assistants and applications; they are not an alternate OID Console backend.
+assistants and applications; they are not an alternate MarinaOS Console backend.
 
 External HTTP clients configure `OID_MARINA_URL`, `OID_MARINA_TOKEN`, and
 optionally `OID_MARINA_MODEL` in their own client process. Keep HTTP bound to
@@ -170,7 +170,7 @@ simultaneous requests cannot race for the active slot or miss queue wakeups.
 
 ### Terminal chat presentation
 
-`talvik run <model-id> <prompt>`, `ask <prompt>`, and OID console
+`talvik run <model-id> <prompt>`, `ask <prompt>`, and MarinaOS console
 responses share a streaming terminal renderer:
 
 - Cyan model/answer labels, muted thinking text, bold Markdown headings and
@@ -208,7 +208,7 @@ fixture daemon; they do not require models or modify the installed daemon.
 Conventions: <https://clig.dev/#output> and <https://no-color.org/>.
 
 
-### OID Console: dot prompt and compact status
+### MarinaOS Console: dot prompt and compact status
 
 Start the optional console with `console`. The dBase-style `. ` prompt stays
 constant when changing directories. Ordinary input still goes to the shell;

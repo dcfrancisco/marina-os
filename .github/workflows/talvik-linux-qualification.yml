@@ -41,14 +41,14 @@ jobs:
         env:
           LLAMA_CPP_INSTALL_DIR: ${{ runner.temp }}/native
         run: ./scripts/setup-llama-linux.sh
-      - name: Build Talvik and OID client
+      - name: Build Talvik and MarinaOS clients
         env:
           LLAMA_CPP_LIB_DIR: ${{ runner.temp }}/native
           LLAMA_CPP_REQUIRED: "1"
         run: |
-          cargo build --release -p oid-console --bin talvikd --bin talvik --bin ask
+          cargo build --release -p oid-console --bin talvikd --bin talvik --bin ask --bin chat
           mkdir -p "$RUNNER_TEMP/marina/bin" "$RUNNER_TEMP/marina/lib"
-          cp target/release/talvikd target/release/talvik target/release/ask "$RUNNER_TEMP/marina/bin/"
+          cp target/release/talvikd target/release/talvik target/release/ask target/release/chat "$RUNNER_TEMP/marina/bin/"
           cp "$RUNNER_TEMP"/native/libllama.so* "$RUNNER_TEMP/marina/lib/"
           cp "$RUNNER_TEMP"/native/libggml*.so* "$RUNNER_TEMP/marina/lib/"
           ldd "$RUNNER_TEMP/marina/bin/talvikd" | tee "$RUNNER_TEMP/marina-ldd.txt"

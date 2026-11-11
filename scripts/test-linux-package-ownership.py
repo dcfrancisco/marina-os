@@ -39,7 +39,7 @@ class PackageOwnership(unittest.TestCase):
                         '--talvikd', str(binary), '--talvik', str(binary),
                         '--native-lib-dir', str(libs), '--output', str(package)]
                 if name == 'oid':
-                    args += ['--oid-console', str(binary)]
+                    args += ['--console', str(binary), '--chat', str(binary), '--ask', str(binary)]
                 run(*args)
                 self.assertEqual(run('dpkg-deb', '-f', str(package), 'Conflicts').stdout.strip(), conflict)
                 # Strip maintainer scripts before any relocated dpkg operation.
@@ -47,6 +47,21 @@ class PackageOwnership(unittest.TestCase):
                 run('dpkg-deb', '-R', str(package), str(extracted))
                 if name == 'oid':
                     self.assertTrue((extracted / 'usr/bin/console').is_file())
+                    for command_name in ('console', 'chat', 'ask'):
+                        self.assertEqual((extracted / f'usr/bin/{command_name}').stat().st_mode & 0o777, 0o755)
+                    self.assertTrue((extracted / 'etc/marinaos/marina-client.env').is_file())
+                    self.assertTrue((extracted / 'usr/lib/marinaos/readiness').is_file())
+                    self.assertTrue((extracted / 'usr/share/marinaos/README.md').is_file())
+                    client_bins = work / 'client-bins'
+                    client_bins.mkdir()
+                    for command_name in ('console', 'chat', 'ask'):
+                        (client_bins / command_name).symlink_to(binary)
+                    collision = subprocess.run(['bash', str(ROOT / 'scripts/stage-marinaos-clients.sh'),
+                                                str(client_bins), str(libs)],
+                                               env={**os.environ, 'DESTDIR': str(extracted)},
+                                               capture_output=True, text=True)
+                    self.assertNotEqual(collision.returncode, 0)
+                    self.assertIn('refusing to overwrite existing command', collision.stderr)
                     self.assertFalse((extracted / 'usr/bin/oid-console').exists())
                     self.assertIn('ExecStart=/usr/bin/console',
                                   (extracted / 'usr/lib/systemd/system/oid-console.service').read_text())
